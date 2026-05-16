@@ -1,0 +1,182 @@
+/* Visitrip — Component styles
+   Original visual language. iOS/macOS-inspired but built from scratch.
+   ----------------------------------------------------------------- */
+
+/* ─── Button ──────────────────────────────────────── */
+.vt-btn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: var(--vt-t-headline-size);
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--vt-r-md);
+  padding: 12px 18px;
+  min-height: 44px;
+  transition: background var(--vt-dur-fast) var(--vt-ease-out),
+              transform var(--vt-dur-fast) var(--vt-ease-out),
+              box-shadow var(--vt-dur-fast) var(--vt-ease-out);
+  white-space: nowrap;
+}
+.vt-btn:focus-visible { outline: none; box-shadow: var(--vt-ring-focus); }
+.vt-btn:active:not(:disabled) { transform: scale(0.97); }
+.vt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.vt-btn--primary {
+  background: var(--vt-accent);
+  color: var(--vt-on-accent);
+}
+.vt-btn--primary:hover:not(:disabled) { background: var(--vt-accent-hover); }
+.vt-btn--primary:active:not(:disabled) { background: var(--vt-accent-pressed); }
+
+.vt-btn--secondary {
+  background: var(--vt-fill-tertiary);
+  color: var(--vt-label);
+}
+.vt-btn--secondary:hover:not(:disabled) { background: var(--vt-fill-quaternary); }
+
+.vt-btn--ghost {
+  background: transparent;
+  color: var(--vt-accent);
+  padding: 8px 12px;
+}
+.vt-btn--ghost:hover:not(:disabled) { background: var(--vt-fill-tertiary); }
+
+.vt-btn--destructive {
+  background: var(--vt-destructive);
+  color: #fff;
+}
+
+.vt-btn--sm { font-size: 14px; padding: 8px 14px; min-height: 36px; border-radius: var(--vt-r-sm); }
+.vt-btn--lg { font-size: 18px; padding: 16px 22px; min-height: 52px; border-radius: var(--vt-r-md); }
+.vt-btn--block { width: 100%; }
+
+.vt-btn--icon {
+  width: 36px; height: 36px; padding: 0;
+  background: transparent; color: var(--vt-label-secondary);
+  border-radius: var(--vt-r-pill); min-height: 36px;
+}
+.vt-btn--icon:hover { background: var(--vt-fill-tertiary); color: var(--vt-label); }
+
+/* loading spinner */
+.vt-spin {
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: vt-spin 0.7s linear infinite;
+}
+@keyframes vt-spin { to { transform: rotate(360deg); } }
+
+/* ─── Input / textarea ────────────────────────────── */
+.vt-field { display: flex; flex-direction: column; gap: 6px; }
+.vt-field label {
+  font-size: var(--vt-t-subhead-size);
+  font-weight: 500;
+  color: var(--vt-label-secondary);
+}
+.vt-input, .vt-textarea, .vt-select {
+  appearance: none;
+  font: inherit;
+  font-size: var(--vt-t-body-size);
+  color: var(--vt-label);
+  background: var(--vt-bg-elev);
+  border: 1px solid var(--vt-separator-opaque);
+  border-radius: var(--vt-r-md);
+  padding: 12px 14px;
+  min-height: 48px;
+  transition: border-color var(--vt-dur-fast), box-shadow var(--vt-dur-fast);
+  width: 100%;
+}
+.vt-textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+.vt-input::placeholder, .vt-textarea::placeholder { color: var(--vt-label-quaternary); }
+.vt-input:hover, .vt-textarea:hover { border-color: var(--vt-label-quaternary); }
+.vt-input:focus, .vt-textarea:focus, .vt-select:focus {
+  outline: none;
+  border-color: var(--vt-accent);
+  box-shadow: var(--vt-ring-focus);
+}
+.vt-input[aria-invalid="true"] { border-color: var(--vt-destructive); }
+.vt-help { font-size: var(--vt-t-footnote-size); color: var(--vt-label-tertiary); }
+.vt-help--error { color: var(--vt-destructive); }
+
+/* ─── Segmented control ───────────────────────────── */
+.vt-seg {
+  display: inline-flex;
+  background: var(--vt-fill-tertiary);
+  padding: 3px;
+  border-radius: var(--vt-r-md);
+  gap: 2px;
+  position: relative;
+}
+.vt-seg button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: var(--vt-t-subhead-size); font-weight: 500;
+  color: var(--vt-label-secondary);
+  padding: 7px 14px; border-radius: calc(var(--vt-r-md) - 4px);
+  transition: color var(--vt-dur-fast);
+  position: relative; z-index: 1;
+}
+.vt-seg button[aria-selected="true"] {
+  color: var(--vt-label);
+  background: var(--vt-bg-elev);
+  box-shadow: var(--vt-shadow-1);
+}
+
+/* ─── Switch ──────────────────────────────────────── */
+.vt-switch {
+  appearance: none; cursor: pointer;
+  width: 51px; height: 31px; border-radius: var(--vt-r-pill);
+  background: var(--vt-fill-tertiary);
+  position: relative;
+  transition: background var(--vt-dur-normal);
+  flex-shrink: 0;
+}
+.vt-switch::after {
+  content: ""; position: absolute; left: 2px; top: 2px;
+  width: 27px; height: 27px; border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12), 0 0 0 0.5px rgba(0,0,0,.04);
+  transition: transform var(--vt-dur-normal) var(--vt-ease-out);
+}
+.vt-switch:checked { background: var(--vt-success); }
+.vt-switch:checked::after { transform: translateX(20px); }
+
+/* ─── Avatar ──────────────────────────────────────── */
+.vt-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff;
+  background: var(--vt-fill-tertiary);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--vt-bg-elev);
+}
+.vt-avatar--sm { width: 24px; height: 24px; font-size: 10px; }
+.vt-avatar--lg { width: 48px; height: 48px; font-size: 16px; }
+.vt-avatar-stack { display: inline-flex; }
+.vt-avatar-stack > .vt-avatar + .vt-avatar { margin-left: -8px; }
+
+/* presence dot */
+.vt-presence-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--vt-success);
+  box-shadow: 0 0 0 2px var(--vt-bg-elev);
+  position: absolute; right: -1px; bottom: -1px;
+}
+
+/* ─── Badge / chip ────────────────────────────────── */
+.vt-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--vt-t-footnote-size); font-weight: 500;
+  padding: 3px 8px; border-radius: var(--vt-r-pill);
+  background: var(--vt-fill-tertiary);
+  color: var(--vt-label-secondary);
+}
+.vt-badge--accent { background: var(--vt-accent-tint); color: var(--vt-accent); }
+.vt-badge--success { background: color-mix(in oklch, var(--vt-success) 18%, transparent); color: var(--vt-success); }
+.vt-badge--warn { background: color-mix(in oklch, var(--vt-warning) 18%, transparent); color: oklch(45% 0.14 60); }
+.vt-badge--dest { background: color-mix(in oklch, var(--vt-destructive) 14%, transparent); color: var(--vt-destructive); }
