@@ -15,6 +15,13 @@
       "when": 1779078083151,
       "tag": "0001_easy_mac_gargan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779081132368,
+      "tag": "0002_mighty_talisman",
+      "breakpoints": true
     }
   ]
 }

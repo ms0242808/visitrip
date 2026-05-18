@@ -52,9 +52,10 @@ function AuthShell({ children, title, sub, footer }: AuthShellProps) {
 interface SignInProps {
   onSwitch: () => void;
   onForgot: () => void;
+  inviteBanner?: boolean;
 }
 
-export function SignIn({ onSwitch, onForgot }: SignInProps) {
+export function SignIn({ onSwitch, onForgot, inviteBanner }: SignInProps) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,8 +76,12 @@ export function SignIn({ onSwitch, onForgot }: SignInProps) {
 
   return (
     <AuthShell
-      title="Welcome back"
-      sub="Pick up where you left off. Your trips are waiting."
+      title={inviteBanner ? "Sign in to join the trip" : "Welcome back"}
+      sub={
+        inviteBanner
+          ? "We'll bring you right back to the invite once you sign in."
+          : "Pick up where you left off. Your trips are waiting."
+      }
       footer={
         <>
           New here?{" "}
@@ -109,9 +114,10 @@ export function SignIn({ onSwitch, onForgot }: SignInProps) {
 
 interface SignUpProps {
   onSwitch: () => void;
+  inviteBanner?: boolean;
 }
 
-export function SignUp({ onSwitch }: SignUpProps) {
+export function SignUp({ onSwitch, inviteBanner }: SignUpProps) {
   const { signUp } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -133,8 +139,12 @@ export function SignUp({ onSwitch }: SignUpProps) {
 
   return (
     <AuthShell
-      title="Plan trips together"
-      sub="Free for the first 3 trips. No credit card."
+      title={inviteBanner ? "Create an account to join" : "Plan trips together"}
+      sub={
+        inviteBanner
+          ? "Sign up and we'll drop you straight onto the trip."
+          : "Free for the first 3 trips. No credit card."
+      }
       footer={
         <>
           Already have an account?{" "}

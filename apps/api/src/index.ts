@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { auth } from "./auth";
 import { attachRealtime } from "./realtime/server";
+import { invitesRouter } from "./routes/invites";
 import { tripsRouter } from "./routes/trips";
 
 const app = new Hono();
@@ -23,6 +24,7 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.route("/api/trips", tripsRouter);
+app.route("/api/invites", invitesRouter);
 
 const port = Number(process.env.PORT ?? 3001);
 const server = serve({ fetch: app.fetch, port }, (info) => {

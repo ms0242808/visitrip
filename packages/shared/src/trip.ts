@@ -175,6 +175,36 @@ export const createExpenseSchema = z.object({
 });
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 
+export const inviteRoleSchema = z.enum(["editor", "viewer"]);
+export type InviteRole = z.infer<typeof inviteRoleSchema>;
+
+export const createInviteSchema = z.object({
+  role: inviteRoleSchema.optional(),
+});
+export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+
+export const invitePreviewSchema = z.object({
+  token: z.string(),
+  role: inviteRoleSchema,
+  trip: z.object({
+    id: z.string(),
+    title: z.string(),
+    location: z.string(),
+    cover: coverKindSchema,
+    startDate: z.string(),
+    endDate: z.string(),
+    memberCount: z.number().int(),
+  }),
+  inviter: z.object({ id: z.string(), name: z.string() }),
+});
+export type InvitePreview = z.infer<typeof invitePreviewSchema>;
+
+export const inviteCreateResponseSchema = z.object({
+  token: z.string(),
+  role: inviteRoleSchema,
+});
+export type InviteCreateResponse = z.infer<typeof inviteCreateResponseSchema>;
+
 export const listTripsResponseSchema = z.object({
   trips: z.array(tripSummarySchema),
 });

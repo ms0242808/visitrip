@@ -2,7 +2,10 @@ import type {
   CreateDayInput,
   CreateDayItemInput,
   CreateExpenseInput,
+  CreateInviteInput,
   CreateTripInput,
+  InviteCreateResponse,
+  InvitePreview,
   ListTripsResponse,
   TripDetail,
   UpdateDayInput,
@@ -142,5 +145,20 @@ export const api = {
 
   deleteExpense(tripId: string, expenseId: string): Promise<{ ok: true }> {
     return request(`/api/trips/${tripId}/expenses/${expenseId}`, { method: "DELETE" });
+  },
+
+  createInvite(tripId: string, input: CreateInviteInput = {}): Promise<InviteCreateResponse> {
+    return request(`/api/trips/${tripId}/invites`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  getInvite(token: string): Promise<InvitePreview> {
+    return request(`/api/invites/${token}`);
+  },
+
+  acceptInvite(token: string): Promise<{ tripId: string }> {
+    return request(`/api/invites/${token}/accept`, { method: "POST" });
   },
 };

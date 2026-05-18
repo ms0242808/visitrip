@@ -150,6 +150,20 @@ export const packingItem = pgTable("packing_item", {
   position: integer("position").notNull().default(0),
 });
 
+export const tripInvite = pgTable("trip_invite", {
+  id: text("id").primaryKey(),
+  tripId: text("trip_id")
+    .notNull()
+    .references(() => trip.id, { onDelete: "cascade" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  role: text("role").notNull().default("editor"),
+  revoked: boolean("revoked").notNull().default(false),
+  createdAt: ts("created_at"),
+});
+
 export const tripYjsState = pgTable("trip_yjs_state", {
   tripId: text("trip_id")
     .primaryKey()

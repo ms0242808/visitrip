@@ -1,16 +1,18 @@
 import { Hono } from "hono";
 import { and, asc, eq, inArray, max } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
 import {
   createDayItemSchema,
   createDaySchema,
   createExpenseSchema,
+  createInviteSchema,
   createTripSchema,
   reorderSchema,
   updateDayItemSchema,
   updateDaySchema,
   updateTripSchema,
+  type InviteCreateResponse,
   type TripDetail,
   type TripSummary,
 } from "@visitrip/shared";
@@ -446,6 +448,30 @@ tripsRouter.post(
       currency: input.currency ?? tripRow?.currency ?? "USD",
     });
     return c.json({ id }, 201);
+  },
+);
+
+tripsRouter.post(
+  "/:id/invites",
+  zValidator("json", createInviteSchema),
+  async (c) => {
+    const session = c.get("session");
+    const tripId = c.req.param("id");
+    if (!tripId) return c.json({ error: "not_found" }, 404);
+    if (!(await requireMembership(tripId, session.user.id))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    const { role } = c.req.valid("json");
+    const token = randomBytes(24).toString("base64url");
+    await db.insert(schema.tripInvite).values({
+      id: randomUUID(),
+      tripId,
+      createdBy: session.user.id,
+      token,
+      role: role ?? "editor",
+    });
+    const body: InviteCreateResponse = { token, role: role ?? "editor" };
+    return c.json(body, 201);
   },
 );
 

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Day, DayItem } from "@visitrip/shared";
 import { Icon } from "./components/Icon";
 import { TabBar } from "./components/ui";
@@ -12,9 +12,27 @@ import { TripScreen } from "./screens/trip";
 import { DayScreen } from "./screens/day";
 import { PlaceSheet } from "./screens/place";
 import { InviteSheet } from "./screens/invite";
+import { InviteAcceptScreen } from "./screens/inviteAccept";
 import { NewTripSheet } from "./screens/newtrip";
 import { ProfileScreen } from "./screens/profile";
 import { TripSettingsSheet } from "./screens/tripsettings";
+
+const PENDING_INVITE_KEY = "visitrip:pendingInvite";
+
+function readInviteFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const m = window.location.pathname.match(/^\/invite\/([A-Za-z0-9_-]{8,})\/?$/);
+  if (m) {
+    sessionStorage.setItem(PENDING_INVITE_KEY, m[1]!);
+    window.history.replaceState({}, "", "/");
+    return m[1]!;
+  }
+  return sessionStorage.getItem(PENDING_INVITE_KEY);
+}
+
+function clearPendingInvite() {
+  sessionStorage.removeItem(PENDING_INVITE_KEY);
+}
 
 type Route =
   | { screen: "home" }
@@ -70,10 +88,43 @@ function Frame({ children }: { children: ReactNode }) {
 
 function RoutedApp() {
   const { state } = useAuth();
+  const [pendingInvite, setPendingInvite] = useState<string | null>(() => readInviteFromUrl());
+  const [acceptMode, setAcceptMode] = useState<"preview" | "auth">("preview");
+  const [openTripOnReady, setOpenTripOnReady] = useState<string | null>(null);
+
+  const clearInvite = () => {
+    clearPendingInvite();
+    setPendingInvite(null);
+    setAcceptMode("preview");
+  };
 
   if (state.status === "loading") return <LoadingScreen />;
-  if (state.status === "anon") return <AuthFlow />;
-  return <SignedInApp />;
+
+  if (pendingInvite && acceptMode === "preview") {
+    return (
+      <InviteAcceptScreen
+        token={pendingInvite}
+        onCancel={clearInvite}
+        onSignInRequired={() => setAcceptMode("auth")}
+        onJoined={(tripId) => {
+          clearPendingInvite();
+          setPendingInvite(null);
+          setAcceptMode("preview");
+          setOpenTripOnReady(tripId);
+        }}
+      />
+    );
+  }
+
+  if (state.status === "anon") {
+    return <AuthFlow inviteBanner={!!pendingInvite} />;
+  }
+
+  if (pendingInvite && acceptMode === "auth") {
+    setAcceptMode("preview");
+  }
+
+  return <SignedInApp initialTripId={openTripOnReady} onConsumedInitialTrip={() => setOpenTripOnReady(null)} />;
 }
 
 function LoadingScreen() {
@@ -93,17 +144,31 @@ function LoadingScreen() {
   );
 }
 
-function AuthFlow() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+function AuthFlow({ inviteBanner = false }: { inviteBanner?: boolean }) {
+  const [mode, setMode] = useState<"signin" | "signup">(inviteBanner ? "signup" : "signin");
   return mode === "signin" ? (
-    <SignIn onSwitch={() => setMode("signup")} onForgot={() => {}} />
+    <SignIn onSwitch={() => setMode("signup")} onForgot={() => {}} inviteBanner={inviteBanner} />
   ) : (
-    <SignUp onSwitch={() => setMode("signin")} />
+    <SignUp onSwitch={() => setMode("signin")} inviteBanner={inviteBanner} />
   );
 }
 
-function SignedInApp() {
-  const [route, setRoute] = useState<Route>({ screen: "home" });
+interface SignedInAppProps {
+  initialTripId?: string | null;
+  onConsumedInitialTrip?: () => void;
+}
+
+function SignedInApp({ initialTripId, onConsumedInitialTrip }: SignedInAppProps = {}) {
+  const [route, setRoute] = useState<Route>(
+    initialTripId ? { screen: "trip", tripId: initialTripId } : { screen: "home" },
+  );
+  useEffect(() => {
+    if (initialTripId && route.screen !== "trip") {
+      setRoute({ screen: "trip", tripId: initialTripId });
+    }
+    if (initialTripId) onConsumedInitialTrip?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTripId]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [tab, setTab] = useState("trips");
   const [toast, setToast] = useState<string | null>(null);
