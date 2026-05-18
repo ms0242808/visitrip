@@ -89,11 +89,21 @@ API listens on `:3001`, web on `:5173`. Vite dev server proxies `/api/*` and `/h
 
 ## Things not built yet (don't claim they are)
 
-- Router (App.tsx is a state-machine, no URL routes)
-- Day / DayItem / Expense / Doc mutations — schema and read endpoints exist,
-  write endpoints don't. Drag-reorder is local-only. **Packing is the
-  exception** — it's wired to Yjs and is the reference for the other panels.
-- Invite acceptance / member add — the share sheet shows a placeholder link.
+- Real router. App.tsx is a state-machine; the one URL we honor is
+  `/invite/<token>`, parsed once on mount.
+- **Document uploads** — the trip_doc table and read endpoint exist, but
+  there's no object storage wired up (S3/R2). The "Attach a file" button
+  in the Documents tab is still a no-op.
+- **Email delivery** — invite tokens are real, the share link works, but
+  the "Email invite" / forgot-password flows have no SMTP/provider wired,
+  so the reset screen is a placeholder that always reports success.
+- **Profile preferences** — the settings rows (appearance, default currency,
+  default week-start, notification toggles, "save offline") are not backed
+  by a `user_settings` table.
+- **Discover / Inbox tabs** — placeholders; no feature spec yet.
+- **Cross-user live updates beyond packing** — day / day-item / expense
+  mutations are REST-only. Other members see them on next load. Migrate to
+  the Yjs doc to make them live (packing is the worked example).
 - CI, tests, linting config.
 
 ## Dev workflow now requires Postgres
@@ -156,18 +166,35 @@ shapes. New write endpoints belong in `apps/api/src/routes/`, behind the
 `requireAuth` middleware, validated with `@hono/zod-validator` against a Zod
 schema from shared.
 
-Current routes (all under `/api`, all behind `requireAuth` except auth itself):
+Current routes (all under `/api`, member-gated unless noted):
 
 ```
-POST   /api/auth/sign-up/email      better-auth
-POST   /api/auth/sign-in/email      better-auth
-POST   /api/auth/sign-out           better-auth
-GET    /api/auth/get-session        better-auth
-GET    /api/trips                   list trips the caller is a member of
-POST   /api/trips                   create a trip (owner = caller)
-GET    /api/trips/:id               full TripDetail (members, days, items,
-                                    expenses, packing, docs)
-DELETE /api/trips/:id               owner-only
+POST   /api/auth/sign-up/email                       better-auth
+POST   /api/auth/sign-in/email                       better-auth
+POST   /api/auth/sign-out                            better-auth
+GET    /api/auth/get-session                         better-auth (public)
+
+GET    /api/trips                                    list caller's trips
+POST   /api/trips                                    create a trip
+GET    /api/trips/:id                                full TripDetail
+PATCH  /api/trips/:id                                update title/dates/cover/...
+DELETE /api/trips/:id                                owner-only
+
+POST   /api/trips/:id/days                           create day (auto-position)
+PATCH  /api/trips/:id/days/:dayId                    update day
+DELETE /api/trips/:id/days/:dayId
+
+POST   /api/trips/:id/days/:dayId/items              create day item
+PATCH  /api/trips/:id/days/:dayId/items/:itemId      update item
+DELETE /api/trips/:id/days/:dayId/items/:itemId
+POST   /api/trips/:id/days/:dayId/items/reorder      whole-list ids reorder
+
+POST   /api/trips/:id/expenses                       create expense
+DELETE /api/trips/:id/expenses/:expenseId
+
+POST   /api/trips/:id/invites                        create invite token
+GET    /api/invites/:token                           public preview
+POST   /api/invites/:token/accept                    auth; add caller as member
 ```
 
 Web-side fetch helpers are in `apps/web/src/lib/api.ts`; React hooks in

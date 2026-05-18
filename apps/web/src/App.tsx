@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { useTrip } from "./lib/trips";
 import { api } from "./lib/api";
 import { TripDocProvider } from "./lib/yjs";
-import { SignIn, SignUp } from "./screens/auth";
+import { ForgotPassword, SignIn, SignUp } from "./screens/auth";
 import { TripsScreen } from "./screens/trips";
 import { TripScreen } from "./screens/trip";
 import { DayScreen } from "./screens/day";
@@ -145,9 +145,14 @@ function LoadingScreen() {
 }
 
 function AuthFlow({ inviteBanner = false }: { inviteBanner?: boolean }) {
-  const [mode, setMode] = useState<"signin" | "signup">(inviteBanner ? "signup" : "signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(inviteBanner ? "signup" : "signin");
+  if (mode === "forgot") return <ForgotPassword onBack={() => setMode("signin")} />;
   return mode === "signin" ? (
-    <SignIn onSwitch={() => setMode("signup")} onForgot={() => {}} inviteBanner={inviteBanner} />
+    <SignIn
+      onSwitch={() => setMode("signup")}
+      onForgot={() => setMode("forgot")}
+      inviteBanner={inviteBanner}
+    />
   ) : (
     <SignUp onSwitch={() => setMode("signin")} inviteBanner={inviteBanner} />
   );

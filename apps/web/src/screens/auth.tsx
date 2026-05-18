@@ -3,6 +3,70 @@ import { Button, Field, Input } from "../components/ui";
 import { BrandMark } from "../components/Brand";
 import { useAuth } from "../lib/auth";
 
+interface ForgotPasswordProps {
+  onBack: () => void;
+}
+
+export function ForgotPassword({ onBack }: ForgotPasswordProps) {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  return (
+    <AuthShell
+      title={submitted ? "Check your inbox" : "Reset your password"}
+      sub={
+        submitted ? (
+          <>
+            If an account exists for <b style={{ color: "var(--vt-label)" }}>{email}</b>, we sent a link to
+            reset the password. The link expires in 30 minutes.
+          </>
+        ) : (
+          "Enter the email you signed up with and we'll send a reset link."
+        )
+      }
+      footer={
+        <a onClick={onBack} style={{ color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>
+          Back to sign in
+        </a>
+      }
+    >
+      {submitted ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360, margin: "0 auto" }}>
+          <Button variant="primary" size="lg" block onClick={onBack}>
+            Done
+          </Button>
+        </div>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSubmitted(true);
+          }}
+          style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 360, margin: "0 auto" }}
+        >
+          <Field label="Email">
+            <Input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+          </Field>
+          <div style={{ fontSize: 12, color: "var(--vt-label-tertiary)", lineHeight: 1.5 }}>
+            Email delivery for resets isn't wired up yet — this is a placeholder. The reset link will go out
+            once an email provider is configured in the backend.
+          </div>
+          <Button type="submit" variant="primary" size="lg" block>
+            Send reset link
+          </Button>
+        </form>
+      )}
+    </AuthShell>
+  );
+}
+
 interface AuthShellProps {
   title: ReactNode;
   sub?: ReactNode;
