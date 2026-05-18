@@ -1,7 +1,13 @@
 import type {
+  CreateDayInput,
+  CreateDayItemInput,
+  CreateExpenseInput,
   CreateTripInput,
   ListTripsResponse,
   TripDetail,
+  UpdateDayInput,
+  UpdateDayItemInput,
+  UpdateTripInput,
   User,
 } from "@visitrip/shared";
 
@@ -76,5 +82,65 @@ export const api = {
 
   deleteTrip(id: string): Promise<{ ok: true }> {
     return request(`/api/trips/${id}`, { method: "DELETE" });
+  },
+
+  updateTrip(id: string, patch: UpdateTripInput): Promise<{ ok: true }> {
+    return request(`/api/trips/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+  },
+
+  createDay(tripId: string, input: CreateDayInput): Promise<{ id: string }> {
+    return request(`/api/trips/${tripId}/days`, { method: "POST", body: JSON.stringify(input) });
+  },
+
+  updateDay(tripId: string, dayId: string, patch: UpdateDayInput): Promise<{ ok: true }> {
+    return request(`/api/trips/${tripId}/days/${dayId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteDay(tripId: string, dayId: string): Promise<{ ok: true }> {
+    return request(`/api/trips/${tripId}/days/${dayId}`, { method: "DELETE" });
+  },
+
+  createDayItem(tripId: string, dayId: string, input: CreateDayItemInput): Promise<{ id: string }> {
+    return request(`/api/trips/${tripId}/days/${dayId}/items`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateDayItem(
+    tripId: string,
+    dayId: string,
+    itemId: string,
+    patch: UpdateDayItemInput,
+  ): Promise<{ ok: true }> {
+    return request(`/api/trips/${tripId}/days/${dayId}/items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
+  deleteDayItem(tripId: string, dayId: string, itemId: string): Promise<{ ok: true }> {
+    return request(`/api/trips/${tripId}/days/${dayId}/items/${itemId}`, { method: "DELETE" });
+  },
+
+  reorderDayItems(tripId: string, dayId: string, ids: string[]): Promise<{ ok: true }> {
+    return request(`/api/trips/${tripId}/days/${dayId}/items/reorder`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  createExpense(tripId: string, input: CreateExpenseInput): Promise<{ id: string }> {
+    return request(`/api/trips/${tripId}/expenses`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  deleteExpense(tripId: string, expenseId: string): Promise<{ ok: true }> {
+    return request(`/api/trips/${tripId}/expenses/${expenseId}`, { method: "DELETE" });
   },
 };

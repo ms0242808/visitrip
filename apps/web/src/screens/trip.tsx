@@ -5,7 +5,9 @@ import { AvatarStack } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { Button, IconButton, NavBar } from "../components/ui";
 import { daysBetween, fmtRange } from "../lib/format";
+import { api } from "../lib/api";
 import { useConnection, usePresence } from "../lib/yjs";
+import { AddDaySheet } from "./sheets";
 import { DocsPanel, ExpensesPanel, MapPanel, PackingPanel } from "./trip-panels";
 
 type TripTab = "itinerary" | "map" | "expenses" | "packing" | "docs";
@@ -16,9 +18,10 @@ interface TripScreenProps {
   onOpenDay: (day: Day) => void;
   onShare: () => void;
   onOpenSettings: () => void;
+  refresh: () => Promise<void>;
 }
 
-export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }: TripScreenProps) {
+export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings, refresh }: TripScreenProps) {
   const [tab, setTab] = useState<TripTab>("itinerary");
   const [scrolled, setScrolled] = useState(false);
   const peers = usePresence();
@@ -105,11 +108,11 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
             ))}
           </div>
 
-          {tab === "itinerary" && <ItineraryList trip={trip} onOpenDay={onOpenDay} />}
-          {tab === "map" && <MapPanel trip={trip} />}
-          {tab === "expenses" && <ExpensesPanel trip={trip} />}
-          {tab === "packing" && <PackingPanel trip={trip} />}
-          {tab === "docs" && <DocsPanel trip={trip} />}
+          {tab === "itinerary" && <ItineraryList trip={trip} onOpenDay={onOpenDay} refresh={refresh} />}
+          {tab === "map" && <MapPanel trip={trip} refresh={refresh} />}
+          {tab === "expenses" && <ExpensesPanel trip={trip} refresh={refresh} />}
+          {tab === "packing" && <PackingPanel trip={trip} refresh={refresh} />}
+          {tab === "docs" && <DocsPanel trip={trip} refresh={refresh} />}
         </div>
         <div style={{ height: 100 }} />
       </div>
@@ -120,21 +123,47 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
 interface ItineraryListProps {
   trip: TripDetail;
   onOpenDay: (day: Day) => void;
+  refresh: () => Promise<void>;
 }
 
-function ItineraryList({ trip, onOpenDay }: ItineraryListProps) {
+function ItineraryList({ trip, onOpenDay, refresh }: ItineraryListProps) {
+  const [adding, setAdding] = useState(false);
+  const nextDate = trip.days.length > 0
+    ? new Date(new Date(trip.days[trip.days.length - 1]!.date).getTime() + 86_400_000)
+        .toISOString()
+        .slice(0, 10)
+    : trip.startDate;
+
+  const addSheet = adding ? (
+    <AddDaySheet
+      defaultDate={nextDate}
+      onClose={() => setAdding(false)}
+      onCreate={async (input) => {
+        await api.createDay(trip.id, input);
+        await refresh();
+        setAdding(false);
+      }}
+    />
+  ) : null;
+
   if (trip.days.length === 0) {
     return (
-      <div
-        style={{
-          padding: "32px 16px",
-          textAlign: "center",
-          fontSize: 14,
-          color: "var(--vt-label-tertiary)",
-        }}
-      >
-        No days yet. Add days to start planning.
-      </div>
+      <>
+        <div
+          style={{
+            padding: "24px 16px",
+            textAlign: "center",
+            fontSize: 14,
+            color: "var(--vt-label-tertiary)",
+          }}
+        >
+          No days yet. Add the first one to start planning.
+        </div>
+        <Button variant="secondary" block icon="plus" onClick={() => setAdding(true)}>
+          Add a day
+        </Button>
+        {addSheet}
+      </>
     );
   }
   return (
@@ -184,6 +213,10 @@ function ItineraryList({ trip, onOpenDay }: ItineraryListProps) {
           </div>
         );
       })}
+      <Button variant="secondary" block icon="plus" onClick={() => setAdding(true)} style={{ marginTop: 4 }}>
+        Add a day
+      </Button>
+      {addSheet}
     </div>
   );
 }

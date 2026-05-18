@@ -2,24 +2,36 @@ import { useEffect, useState } from "react";
 import type { Day, DayItem as DayItemT, TripDetail } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Badge, Button, IconButton, NavBar } from "../components/ui";
+import { api } from "../lib/api";
+import { AddDayItemSheet } from "./sheets";
 
 interface DayScreenProps {
   trip: TripDetail;
   day: Day;
   onBack: () => void;
   onOpenPlace: (item: DayItemT) => void;
-  onAdd: () => void;
+  refresh: () => Promise<void>;
 }
 
-export function DayScreen({ trip, day, onBack, onOpenPlace, onAdd }: DayScreenProps) {
+export function DayScreen({ trip, day, onBack, onOpenPlace, refresh }: DayScreenProps) {
   const [items, setItems] = useState<DayItemT[]>(day.items);
   const [scrolled, setScrolled] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     setItems(day.items);
   }, [day.id, day.items]);
+
+  const persistOrder = async (next: DayItemT[]) => {
+    try {
+      await api.reorderDayItems(trip.id, day.id, next.map((it) => it.id));
+      await refresh();
+    } catch {
+      setItems(day.items);
+    }
+  };
 
   const drop = () => {
     if (dragIdx != null && overIdx != null && dragIdx !== overIdx) {
@@ -27,10 +39,23 @@ export function DayScreen({ trip, day, onBack, onOpenPlace, onAdd }: DayScreenPr
       const [m] = next.splice(dragIdx, 1);
       if (m) next.splice(overIdx, 0, m);
       setItems(next);
+      void persistOrder(next);
     }
     setDragIdx(null);
     setOverIdx(null);
   };
+
+  const removeItem = async (itemId: string) => {
+    setItems((prev) => prev.filter((it) => it.id !== itemId));
+    try {
+      await api.deleteDayItem(trip.id, day.id, itemId);
+      await refresh();
+    } catch {
+      setItems(day.items);
+    }
+  };
+
+  const onAdd = () => setAdding(true);
 
   const dayIdx = trip.days.findIndex((x) => x.id === day.id);
   const d = new Date(day.date);
@@ -81,6 +106,7 @@ export function DayScreen({ trip, day, onBack, onOpenPlace, onAdd }: DayScreenPr
                   dragging={dragIdx === i}
                   over={overIdx === i && dragIdx !== i}
                   onClick={() => onOpenPlace(it)}
+                  onRemove={() => void removeItem(it.id)}
                   onDragStart={() => setDragIdx(i)}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -119,6 +145,16 @@ export function DayScreen({ trip, day, onBack, onOpenPlace, onAdd }: DayScreenPr
           )}
         </div>
       </div>
+      {adding && (
+        <AddDayItemSheet
+          onClose={() => setAdding(false)}
+          onCreate={async (input) => {
+            await api.createDayItem(trip.id, day.id, input);
+            await refresh();
+            setAdding(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -166,13 +202,25 @@ interface DayItemProps {
   dragging: boolean;
   over: boolean;
   onClick: () => void;
+  onRemove: () => void;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
   onDragEnd: () => void;
 }
 
-function DayItem({ item, last, dragging, over, onClick, onDragStart, onDragOver, onDrop, onDragEnd }: DayItemProps) {
+function DayItem({
+  item,
+  last,
+  dragging,
+  over,
+  onClick,
+  onRemove,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: DayItemProps) {
   const tagVariant: Record<string, "accent" | "success" | "warn"> = {
     Reservation: "accent",
     Tickets: "success",
@@ -289,6 +337,26 @@ function DayItem({ item, last, dragging, over, onClick, onDragStart, onDragOver,
             </div>
           )}
         </div>
+        <button
+          type="button"
+          aria-label="Remove"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          style={{
+            border: 0,
+            background: "transparent",
+            color: "var(--vt-label-quaternary)",
+            cursor: "pointer",
+            padding: 4,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon name="close" size={14} />
+        </button>
         <Icon name="drag" size={16} style={{ color: "var(--vt-label-quaternary)", marginTop: 8, flexShrink: 0 }} />
       </div>
     </div>

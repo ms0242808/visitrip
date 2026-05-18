@@ -3,10 +3,13 @@ import * as Y from "yjs";
 import type { TripDetail } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Button, IconButton } from "../components/ui";
+import { api } from "../lib/api";
 import { useTripDoc, useYArray } from "../lib/yjs";
+import { AddExpenseSheet } from "./sheets";
 
 interface PanelProps {
   trip: TripDetail;
+  refresh: () => Promise<void>;
 }
 
 function EmptyPanel({ message }: { message: string }) {
@@ -79,7 +82,8 @@ export function MapPanel({ trip }: PanelProps) {
   );
 }
 
-export function ExpensesPanel({ trip }: PanelProps) {
+export function ExpensesPanel({ trip, refresh }: PanelProps) {
+  const [adding, setAdding] = useState(false);
   const total = trip.expenses.reduce((a, e) => a + e.amountCents, 0);
   const budgetTotal = trip.budgetTotalCents;
   const perPerson = trip.members.length > 0 ? Math.round(total / trip.members.length) : 0;
@@ -88,14 +92,39 @@ export function ExpensesPanel({ trip }: PanelProps) {
     new Intl.NumberFormat("en", { style: "currency", currency: trip.currency }).format(cents / 100);
   const memberById = new Map(trip.members.map((m) => [m.id, m]));
 
+  const removeExpense = async (expenseId: string) => {
+    try {
+      await api.deleteExpense(trip.id, expenseId);
+      await refresh();
+    } catch {
+      // swallow; UI stays as-is
+    }
+  };
+
+  const addSheet = adding ? (
+    <AddExpenseSheet
+      defaultDate={new Date().toISOString().slice(0, 10)}
+      currency={trip.currency}
+      onClose={() => setAdding(false)}
+      onCreate={async (input) => {
+        await api.createExpense(trip.id, input);
+        await refresh();
+        setAdding(false);
+      }}
+    />
+  ) : null;
+
   if (trip.expenses.length === 0 && budgetTotal === 0) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <EmptyPanel message="No expenses yet. Track who paid for what." />
-        <Button variant="secondary" block icon="plus">
-          Add expense
-        </Button>
-      </div>
+      <>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <EmptyPanel message="No expenses yet. Track who paid for what." />
+          <Button variant="secondary" block icon="plus" onClick={() => setAdding(true)}>
+            Add expense
+          </Button>
+        </div>
+        {addSheet}
+      </>
     );
   }
 
@@ -182,15 +211,17 @@ export function ExpensesPanel({ trip }: PanelProps) {
                     </div>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 600 }}>{fmt(e.amountCents)}</div>
+                  <IconButton name="close" onClick={() => void removeExpense(e.id)} />
                 </div>
               );
             })}
           </div>
         </div>
       )}
-      <Button variant="secondary" block icon="plus">
+      <Button variant="secondary" block icon="plus" onClick={() => setAdding(true)}>
         Add expense
       </Button>
+      {addSheet}
     </div>
   );
 }

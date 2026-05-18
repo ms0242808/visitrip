@@ -112,6 +112,62 @@ export const createTripSchema = z.object({
 });
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 
+export const updateTripSchema = z.object({
+  title: z.string().min(1).max(120).optional(),
+  location: z.string().min(1).max(120).optional(),
+  cover: coverKindSchema.optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  summary: z.string().max(2000).optional(),
+  currency: z.string().length(3).optional(),
+  budgetTotalCents: z.number().int().min(0).optional(),
+  archived: z.boolean().optional(),
+});
+export type UpdateTripInput = z.infer<typeof updateTripSchema>;
+
+export const createDaySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  label: z.string().min(1).max(120),
+});
+export type CreateDayInput = z.infer<typeof createDaySchema>;
+
+export const updateDaySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  label: z.string().min(1).max(120).optional(),
+  position: z.number().int().min(0).optional(),
+});
+export type UpdateDayInput = z.infer<typeof updateDaySchema>;
+
+export const createDayItemSchema = z.object({
+  type: dayItemKindSchema,
+  time: z.string().min(1).max(20),
+  title: z.string().min(1).max(160),
+  sub: z.string().max(240).optional(),
+  icon: z.string().max(32).optional(),
+  anchor: z.boolean().optional(),
+  tag: dayItemTagSchema.nullable().optional(),
+});
+export type CreateDayItemInput = z.infer<typeof createDayItemSchema>;
+
+export const updateDayItemSchema = createDayItemSchema.partial().extend({
+  position: z.number().int().min(0).optional(),
+});
+export type UpdateDayItemInput = z.infer<typeof updateDayItemSchema>;
+
+export const reorderSchema = z.object({
+  ids: z.array(z.string()).min(1),
+});
+export type ReorderInput = z.infer<typeof reorderSchema>;
+
+export const createExpenseSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  label: z.string().min(1).max(160),
+  amountCents: z.number().int().min(0),
+  currency: z.string().length(3).optional(),
+  paidById: z.string().optional(),
+});
+export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
+
 export const listTripsResponseSchema = z.object({
   trips: z.array(tripSummarySchema),
 });

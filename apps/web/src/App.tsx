@@ -147,7 +147,6 @@ function SignedInApp() {
             dayId={route.dayId}
             onBack={() => setRoute({ screen: "trip", tripId: route.tripId })}
             onOpenPlace={(item) => setSheet({ kind: "place", item })}
-            onAdd={() => showToast("Add a plan (coming soon)")}
           />
         )}
         {route.screen === "profile" && (
@@ -197,7 +196,7 @@ interface TripViewProps {
 
 function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripViewProps) {
   const { state } = useAuth();
-  const { trip, loading, error } = useTrip(tripId);
+  const { trip, loading, error, refresh } = useTrip(tripId);
   if (loading && !trip) return <LoadingScreen />;
   if (error || !trip) {
     return (
@@ -215,6 +214,7 @@ function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripVi
         onOpenDay={onOpenDay}
         onShare={onShare}
         onOpenSettings={onOpenSettings}
+        refresh={refresh}
       />
     </TripDocProvider>
   );
@@ -225,16 +225,15 @@ interface DayViewProps {
   dayId: string;
   onBack: () => void;
   onOpenPlace: (item: DayItem) => void;
-  onAdd: () => void;
 }
 
-function DayView({ tripId, dayId, onBack, onOpenPlace, onAdd }: DayViewProps) {
-  const { trip, loading } = useTrip(tripId);
+function DayView({ tripId, dayId, onBack, onOpenPlace }: DayViewProps) {
+  const { trip, loading, refresh } = useTrip(tripId);
   if (loading && !trip) return <LoadingScreen />;
   if (!trip) return <CenteredMessage>Trip not found</CenteredMessage>;
   const day = trip.days.find((d) => d.id === dayId);
   if (!day) return <CenteredMessage>Day not found</CenteredMessage>;
-  return <DayScreen trip={trip} day={day} onBack={onBack} onOpenPlace={onOpenPlace} onAdd={onAdd} />;
+  return <DayScreen trip={trip} day={day} onBack={onBack} onOpenPlace={onOpenPlace} refresh={refresh} />;
 }
 
 function InviteSheetWrapper({ tripId, onClose }: { tripId: string; onClose: () => void }) {

@@ -1,9 +1,16 @@
 import { Hono } from "hono";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, max } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
 import {
+  createDayItemSchema,
+  createDaySchema,
+  createExpenseSchema,
   createTripSchema,
+  reorderSchema,
+  updateDayItemSchema,
+  updateDaySchema,
+  updateTripSchema,
   type TripDetail,
   type TripSummary,
 } from "@visitrip/shared";
@@ -14,6 +21,22 @@ import { requireAuth, type Variables } from "../middleware";
 export const tripsRouter = new Hono<{ Variables: Variables }>();
 
 tripsRouter.use("*", requireAuth);
+
+async function requireMembership(tripId: string, userId: string) {
+  const [member] = await db
+    .select()
+    .from(schema.tripMember)
+    .where(and(eq(schema.tripMember.tripId, tripId), eq(schema.tripMember.userId, userId)));
+  return member ?? null;
+}
+
+async function requireOwnedDay(tripId: string, dayId: string) {
+  const [row] = await db
+    .select()
+    .from(schema.day)
+    .where(and(eq(schema.day.id, dayId), eq(schema.day.tripId, tripId)));
+  return row ?? null;
+}
 
 tripsRouter.get("/", async (c) => {
   const session = c.get("session");
@@ -206,6 +229,22 @@ tripsRouter.get("/:id", async (c) => {
   return c.json(detail);
 });
 
+tripsRouter.patch("/:id", zValidator("json", updateTripSchema), async (c) => {
+  const session = c.get("session");
+  const tripId = c.req.param("id");
+  if (!tripId) return c.json({ error: "not_found" }, 404);
+  if (!(await requireMembership(tripId, session.user.id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  const patch = c.req.valid("json");
+  if (Object.keys(patch).length === 0) return c.json({ ok: true });
+  await db
+    .update(schema.trip)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(schema.trip.id, tripId));
+  return c.json({ ok: true });
+});
+
 tripsRouter.delete("/:id", async (c) => {
   const session = c.get("session");
   const tripId = c.req.param("id");
@@ -216,5 +255,210 @@ tripsRouter.delete("/:id", async (c) => {
   if (tripRow.ownerId !== session.user.id) return c.json({ error: "forbidden" }, 403);
 
   await db.delete(schema.trip).where(eq(schema.trip.id, tripId));
+  return c.json({ ok: true });
+});
+
+tripsRouter.post("/:id/days", zValidator("json", createDaySchema), async (c) => {
+  const session = c.get("session");
+  const tripId = c.req.param("id");
+  if (!tripId) return c.json({ error: "not_found" }, 404);
+  if (!(await requireMembership(tripId, session.user.id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  const input = c.req.valid("json");
+  const [row] = await db
+    .select({ max: max(schema.day.position) })
+    .from(schema.day)
+    .where(eq(schema.day.tripId, tripId));
+  const id = randomUUID();
+  await db.insert(schema.day).values({
+    id,
+    tripId,
+    position: (row?.max ?? -1) + 1,
+    date: input.date,
+    label: input.label,
+  });
+  return c.json({ id }, 201);
+});
+
+tripsRouter.patch(
+  "/:id/days/:dayId",
+  zValidator("json", updateDaySchema),
+  async (c) => {
+    const session = c.get("session");
+    const tripId = c.req.param("id");
+    const dayId = c.req.param("dayId");
+    if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
+    if (!(await requireMembership(tripId, session.user.id))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    if (!(await requireOwnedDay(tripId, dayId))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    const patch = c.req.valid("json");
+    if (Object.keys(patch).length === 0) return c.json({ ok: true });
+    await db.update(schema.day).set(patch).where(eq(schema.day.id, dayId));
+    return c.json({ ok: true });
+  },
+);
+
+tripsRouter.delete("/:id/days/:dayId", async (c) => {
+  const session = c.get("session");
+  const tripId = c.req.param("id");
+  const dayId = c.req.param("dayId");
+  if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
+  if (!(await requireMembership(tripId, session.user.id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  if (!(await requireOwnedDay(tripId, dayId))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  await db.delete(schema.day).where(eq(schema.day.id, dayId));
+  return c.json({ ok: true });
+});
+
+tripsRouter.post(
+  "/:id/days/:dayId/items",
+  zValidator("json", createDayItemSchema),
+  async (c) => {
+    const session = c.get("session");
+    const tripId = c.req.param("id");
+    const dayId = c.req.param("dayId");
+    if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
+    if (!(await requireMembership(tripId, session.user.id))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    if (!(await requireOwnedDay(tripId, dayId))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    const input = c.req.valid("json");
+    const [row] = await db
+      .select({ max: max(schema.dayItem.position) })
+      .from(schema.dayItem)
+      .where(eq(schema.dayItem.dayId, dayId));
+    const id = randomUUID();
+    await db.insert(schema.dayItem).values({
+      id,
+      dayId,
+      position: (row?.max ?? -1) + 1,
+      type: input.type,
+      time: input.time,
+      title: input.title,
+      sub: input.sub ?? "",
+      icon: input.icon ?? "pin",
+      anchor: input.anchor ?? false,
+      tag: input.tag ?? null,
+    });
+    return c.json({ id }, 201);
+  },
+);
+
+tripsRouter.patch(
+  "/:id/days/:dayId/items/:itemId",
+  zValidator("json", updateDayItemSchema),
+  async (c) => {
+    const session = c.get("session");
+    const tripId = c.req.param("id");
+    const dayId = c.req.param("dayId");
+    const itemId = c.req.param("itemId");
+    if (!tripId || !dayId || !itemId) return c.json({ error: "not_found" }, 404);
+    if (!(await requireMembership(tripId, session.user.id))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    if (!(await requireOwnedDay(tripId, dayId))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    const patch = c.req.valid("json");
+    if (Object.keys(patch).length === 0) return c.json({ ok: true });
+    await db
+      .update(schema.dayItem)
+      .set(patch)
+      .where(and(eq(schema.dayItem.id, itemId), eq(schema.dayItem.dayId, dayId)));
+    return c.json({ ok: true });
+  },
+);
+
+tripsRouter.delete("/:id/days/:dayId/items/:itemId", async (c) => {
+  const session = c.get("session");
+  const tripId = c.req.param("id");
+  const dayId = c.req.param("dayId");
+  const itemId = c.req.param("itemId");
+  if (!tripId || !dayId || !itemId) return c.json({ error: "not_found" }, 404);
+  if (!(await requireMembership(tripId, session.user.id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  if (!(await requireOwnedDay(tripId, dayId))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  await db
+    .delete(schema.dayItem)
+    .where(and(eq(schema.dayItem.id, itemId), eq(schema.dayItem.dayId, dayId)));
+  return c.json({ ok: true });
+});
+
+tripsRouter.post(
+  "/:id/days/:dayId/items/reorder",
+  zValidator("json", reorderSchema),
+  async (c) => {
+    const session = c.get("session");
+    const tripId = c.req.param("id");
+    const dayId = c.req.param("dayId");
+    if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
+    if (!(await requireMembership(tripId, session.user.id))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    if (!(await requireOwnedDay(tripId, dayId))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    const { ids } = c.req.valid("json");
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < ids.length; i++) {
+        await tx
+          .update(schema.dayItem)
+          .set({ position: i })
+          .where(and(eq(schema.dayItem.id, ids[i]!), eq(schema.dayItem.dayId, dayId)));
+      }
+    });
+    return c.json({ ok: true });
+  },
+);
+
+tripsRouter.post(
+  "/:id/expenses",
+  zValidator("json", createExpenseSchema),
+  async (c) => {
+    const session = c.get("session");
+    const tripId = c.req.param("id");
+    if (!tripId) return c.json({ error: "not_found" }, 404);
+    if (!(await requireMembership(tripId, session.user.id))) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    const input = c.req.valid("json");
+    const id = randomUUID();
+    const [tripRow] = await db.select().from(schema.trip).where(eq(schema.trip.id, tripId));
+    await db.insert(schema.expense).values({
+      id,
+      tripId,
+      paidById: input.paidById ?? session.user.id,
+      date: input.date,
+      label: input.label,
+      amountCents: input.amountCents,
+      currency: input.currency ?? tripRow?.currency ?? "USD",
+    });
+    return c.json({ id }, 201);
+  },
+);
+
+tripsRouter.delete("/:id/expenses/:expenseId", async (c) => {
+  const session = c.get("session");
+  const tripId = c.req.param("id");
+  const expenseId = c.req.param("expenseId");
+  if (!tripId || !expenseId) return c.json({ error: "not_found" }, 404);
+  if (!(await requireMembership(tripId, session.user.id))) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  await db
+    .delete(schema.expense)
+    .where(and(eq(schema.expense.id, expenseId), eq(schema.expense.tripId, tripId)));
   return c.json({ ok: true });
 });
