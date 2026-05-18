@@ -50,7 +50,7 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);
 });
 
-attachRealtime(server as unknown as HttpServer);
+const wss = attachRealtime(server as unknown as HttpServer);
 
 let shuttingDown = false;
 async function shutdown(signal: string) {
@@ -62,6 +62,12 @@ async function shutdown(signal: string) {
   } catch (e) {
     console.error("[api] flushAll failed during shutdown", e);
   }
+  for (const ws of wss.clients) {
+    try {
+      ws.terminate();
+    } catch {}
+  }
+  wss.close();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 5000).unref();
 }
