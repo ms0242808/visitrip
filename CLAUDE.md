@@ -43,9 +43,13 @@ Workspace packages are referenced as `@visitrip/<name>` and are source-only (the
 
 ## Design
 
-UI/UX follows Apple Human Interface Guidelines (clarity, deference, depth). The full design brief lives in the conversation history; design tokens, screens, and component specs are being produced by a separate design pass and will land before screen-level UI work begins.
-
-Until designs land, do not invent visual styling beyond minimal placeholders. The current `App.tsx` is intentionally a single centered heading.
+UI/UX follows Apple Human Interface Guidelines (clarity, deference, depth).
+The prototype screens (sign-in / sign-up, trips list, trip detail with
+itinerary / map / expenses / packing / documents tabs, day detail, place
+sheet, invite sheet, new-trip sheet, profile) live in `apps/web/src/screens/`.
+Visual primitives are in `apps/web/src/components/` and tokens in
+`apps/web/src/styles/`. Don't invent new visual styling — extend the existing
+tokens and primitives.
 
 ## Common commands
 
@@ -115,3 +119,29 @@ email+password. The handler is mounted in `apps/api/src/index.ts` at
 In docker-compose the web container's nginx proxies `/api/*` to the api
 service so the better-auth session cookie stays same-origin in production —
 matching the Vite proxy in dev.
+
+## Data flow
+
+All shared types live in `@visitrip/shared` (Zod schemas, `z.infer<>`'d into
+TypeScript). The web never imports from `@visitrip/db` — it only sees the API
+shapes. New write endpoints belong in `apps/api/src/routes/`, behind the
+`requireAuth` middleware, validated with `@hono/zod-validator` against a Zod
+schema from shared.
+
+Current routes (all under `/api`, all behind `requireAuth` except auth itself):
+
+```
+POST   /api/auth/sign-up/email      better-auth
+POST   /api/auth/sign-in/email      better-auth
+POST   /api/auth/sign-out           better-auth
+GET    /api/auth/get-session        better-auth
+GET    /api/trips                   list trips the caller is a member of
+POST   /api/trips                   create a trip (owner = caller)
+GET    /api/trips/:id               full TripDetail (members, days, items,
+                                    expenses, packing, docs)
+DELETE /api/trips/:id               owner-only
+```
+
+Web-side fetch helpers are in `apps/web/src/lib/api.ts`; React hooks in
+`apps/web/src/lib/trips.ts` (`useTrips`, `useTrip`). All requests go with
+`credentials: "include"` so the session cookie rides along.
