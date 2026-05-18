@@ -19,6 +19,7 @@ import {
 import { schema } from "@visitrip/db";
 import { db } from "../db";
 import { requireAuth, type Variables } from "../middleware";
+import { removeDoc } from "../realtime/docs";
 
 export const tripsRouter = new Hono<{ Variables: Variables }>();
 
@@ -254,6 +255,7 @@ tripsRouter.delete("/:id", async (c) => {
   if (!tripRow) return c.json({ error: "not_found" }, 404);
   if (tripRow.ownerId !== session.user.id) return c.json({ error: "forbidden" }, 403);
 
+  await removeDoc(tripId);
   await db.delete(schema.trip).where(eq(schema.trip.id, tripId));
   return c.json({ ok: true });
 });

@@ -8,14 +8,17 @@ interface DocEntry {
   doc: Y.Doc;
   awareness: Awareness;
   persistTimer: NodeJS.Timeout | null;
+  evictTimer: NodeJS.Timeout | null;
   dirty: boolean;
   clients: number;
+  sockets: Set<{ close: () => void }>;
 }
 
 const docs = new Map<string, DocEntry>();
 const loading = new Map<string, Promise<DocEntry>>();
 
 const PERSIST_DEBOUNCE_MS = 1_000;
+const EVICT_IDLE_MS = 30_000;
 
 async function hydrate(tripId: string): Promise<DocEntry> {
   const doc = new Y.Doc();
@@ -51,8 +54,10 @@ async function hydrate(tripId: string): Promise<DocEntry> {
     doc,
     awareness: new Awareness(doc),
     persistTimer: null,
+    evictTimer: null,
     dirty: false,
     clients: 0,
+    sockets: new Set(),
   };
 
   doc.on("update", () => {
@@ -82,7 +87,13 @@ async function persist(tripId: string, entry: DocEntry) {
 
 export async function getDoc(tripId: string): Promise<DocEntry> {
   const cached = docs.get(tripId);
-  if (cached) return cached;
+  if (cached) {
+    if (cached.evictTimer) {
+      clearTimeout(cached.evictTimer);
+      cached.evictTimer = null;
+    }
+    return cached;
+  }
   const inFlight = loading.get(tripId);
   if (inFlight) return inFlight;
 
@@ -95,10 +106,26 @@ export async function getDoc(tripId: string): Promise<DocEntry> {
   return promise;
 }
 
+export function trackSocket(tripId: string, socket: { close: () => void }) {
+  const entry = docs.get(tripId);
+  if (!entry) return;
+  entry.sockets.add(socket);
+}
+
+export function untrackSocket(tripId: string, socket: { close: () => void }) {
+  const entry = docs.get(tripId);
+  if (!entry) return;
+  entry.sockets.delete(socket);
+}
+
 export function addClient(tripId: string) {
   const entry = docs.get(tripId);
   if (!entry) return;
   entry.clients += 1;
+  if (entry.evictTimer) {
+    clearTimeout(entry.evictTimer);
+    entry.evictTimer = null;
+  }
 }
 
 export async function removeClient(tripId: string) {
@@ -113,7 +140,46 @@ export async function removeClient(tripId: string) {
     await persist(tripId, entry).catch((e) =>
       console.error(`[yjs ${tripId}] flush-on-disconnect failed`, e),
     );
+    if (entry.evictTimer) clearTimeout(entry.evictTimer);
+    entry.evictTimer = setTimeout(() => {
+      void evict(tripId);
+    }, EVICT_IDLE_MS);
   }
+}
+
+async function evict(tripId: string) {
+  const entry = docs.get(tripId);
+  if (!entry || entry.clients > 0) return;
+  if (entry.persistTimer) {
+    clearTimeout(entry.persistTimer);
+    entry.persistTimer = null;
+  }
+  await persist(tripId, entry).catch((e) =>
+    console.error(`[yjs ${tripId}] persist-on-evict failed`, e),
+  );
+  entry.doc.destroy();
+  docs.delete(tripId);
+}
+
+export async function removeDoc(tripId: string) {
+  const entry = docs.get(tripId);
+  if (!entry) return;
+  if (entry.persistTimer) {
+    clearTimeout(entry.persistTimer);
+    entry.persistTimer = null;
+  }
+  if (entry.evictTimer) {
+    clearTimeout(entry.evictTimer);
+    entry.evictTimer = null;
+  }
+  for (const s of entry.sockets) {
+    try {
+      s.close();
+    } catch {}
+  }
+  entry.sockets.clear();
+  entry.doc.destroy();
+  docs.delete(tripId);
 }
 
 export async function flushAll() {
