@@ -23,6 +23,11 @@ app.use(
   }),
 );
 
+app.onError((err, c) => {
+  console.error("[api] unhandled", err);
+  return c.json({ error: "internal_error" }, 500);
+});
+
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
