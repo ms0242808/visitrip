@@ -37,7 +37,6 @@ Open-source app for organizing, sharing, and real-time collaborating on trips wi
 
 ### Minor
 
-- PWA manifest has empty `icons: []` (`apps/web/vite.config.ts:20`); install doesn't actually work in Chrome or Safari. Add 192/512 PNG icons or drop "Installable PWA shell" above.
 - `useYArray` has a dead `useMemo`-built `subscribe` factory with a `void subscribe;` line (`apps/web/src/lib/yjs.tsx:81-97`). Finish migrating to `useSyncExternalStore` or delete the dead code.
 - Root `dev` script uses Unix-only `&` (`package.json:11`); document that Windows isn't supported or replace with a portable orchestrator.
 - No global Hono `app.onError` handler (`apps/api/src/index.ts`); uncaught throws leak stack traces and produce inconsistent JSON shapes vs. the rest of the API.
