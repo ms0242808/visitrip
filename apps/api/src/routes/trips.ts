@@ -425,6 +425,14 @@ tripsRouter.post(
       return c.json({ error: "not_found" }, 404);
     }
     const { ids } = c.req.valid("json");
+    const current = await db
+      .select({ id: schema.dayItem.id })
+      .from(schema.dayItem)
+      .where(eq(schema.dayItem.dayId, dayId));
+    const currentSet = new Set(current.map((r) => r.id));
+    if (ids.length !== currentSet.size || new Set(ids).size !== ids.length || !ids.every((id) => currentSet.has(id))) {
+      return c.json({ error: "invalid_reorder" }, 400);
+    }
     await db.transaction(async (tx) => {
       for (let i = 0; i < ids.length; i++) {
         await tx
