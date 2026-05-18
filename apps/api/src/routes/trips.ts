@@ -32,6 +32,13 @@ async function requireMembership(tripId: string, userId: string) {
   return member ?? null;
 }
 
+async function requireWriteAccess(tripId: string, userId: string) {
+  const member = await requireMembership(tripId, userId);
+  if (!member) return { ok: false as const, status: 404 as const };
+  if (member.role === "viewer") return { ok: false as const, status: 403 as const };
+  return { ok: true as const, member };
+}
+
 async function requireOwnedDay(tripId: string, dayId: string) {
   const [row] = await db
     .select()
@@ -235,7 +242,9 @@ tripsRouter.patch("/:id", zValidator("json", updateTripSchema), async (c) => {
   const session = c.get("session");
   const tripId = c.req.param("id");
   if (!tripId) return c.json({ error: "not_found" }, 404);
-  if (!(await requireMembership(tripId, session.user.id))) {
+  const access = await requireWriteAccess(tripId, session.user.id);
+  if (!access.ok) {
+    if (access.status === 403) return c.json({ error: "forbidden" }, 403);
     return c.json({ error: "not_found" }, 404);
   }
   const patch = c.req.valid("json");
@@ -264,7 +273,9 @@ tripsRouter.post("/:id/days", zValidator("json", createDaySchema), async (c) => 
   const session = c.get("session");
   const tripId = c.req.param("id");
   if (!tripId) return c.json({ error: "not_found" }, 404);
-  if (!(await requireMembership(tripId, session.user.id))) {
+  const access = await requireWriteAccess(tripId, session.user.id);
+  if (!access.ok) {
+    if (access.status === 403) return c.json({ error: "forbidden" }, 403);
     return c.json({ error: "not_found" }, 404);
   }
   const input = c.req.valid("json");
@@ -291,7 +302,9 @@ tripsRouter.patch(
     const tripId = c.req.param("id");
     const dayId = c.req.param("dayId");
     if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
-    if (!(await requireMembership(tripId, session.user.id))) {
+    const access = await requireWriteAccess(tripId, session.user.id);
+    if (!access.ok) {
+      if (access.status === 403) return c.json({ error: "forbidden" }, 403);
       return c.json({ error: "not_found" }, 404);
     }
     if (!(await requireOwnedDay(tripId, dayId))) {
@@ -309,7 +322,9 @@ tripsRouter.delete("/:id/days/:dayId", async (c) => {
   const tripId = c.req.param("id");
   const dayId = c.req.param("dayId");
   if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
-  if (!(await requireMembership(tripId, session.user.id))) {
+  const access = await requireWriteAccess(tripId, session.user.id);
+  if (!access.ok) {
+    if (access.status === 403) return c.json({ error: "forbidden" }, 403);
     return c.json({ error: "not_found" }, 404);
   }
   if (!(await requireOwnedDay(tripId, dayId))) {
@@ -327,7 +342,9 @@ tripsRouter.post(
     const tripId = c.req.param("id");
     const dayId = c.req.param("dayId");
     if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
-    if (!(await requireMembership(tripId, session.user.id))) {
+    const access = await requireWriteAccess(tripId, session.user.id);
+    if (!access.ok) {
+      if (access.status === 403) return c.json({ error: "forbidden" }, 403);
       return c.json({ error: "not_found" }, 404);
     }
     if (!(await requireOwnedDay(tripId, dayId))) {
@@ -364,7 +381,9 @@ tripsRouter.patch(
     const dayId = c.req.param("dayId");
     const itemId = c.req.param("itemId");
     if (!tripId || !dayId || !itemId) return c.json({ error: "not_found" }, 404);
-    if (!(await requireMembership(tripId, session.user.id))) {
+    const access = await requireWriteAccess(tripId, session.user.id);
+    if (!access.ok) {
+      if (access.status === 403) return c.json({ error: "forbidden" }, 403);
       return c.json({ error: "not_found" }, 404);
     }
     if (!(await requireOwnedDay(tripId, dayId))) {
@@ -386,7 +405,9 @@ tripsRouter.delete("/:id/days/:dayId/items/:itemId", async (c) => {
   const dayId = c.req.param("dayId");
   const itemId = c.req.param("itemId");
   if (!tripId || !dayId || !itemId) return c.json({ error: "not_found" }, 404);
-  if (!(await requireMembership(tripId, session.user.id))) {
+  const access = await requireWriteAccess(tripId, session.user.id);
+  if (!access.ok) {
+    if (access.status === 403) return c.json({ error: "forbidden" }, 403);
     return c.json({ error: "not_found" }, 404);
   }
   if (!(await requireOwnedDay(tripId, dayId))) {
@@ -406,7 +427,9 @@ tripsRouter.post(
     const tripId = c.req.param("id");
     const dayId = c.req.param("dayId");
     if (!tripId || !dayId) return c.json({ error: "not_found" }, 404);
-    if (!(await requireMembership(tripId, session.user.id))) {
+    const access = await requireWriteAccess(tripId, session.user.id);
+    if (!access.ok) {
+      if (access.status === 403) return c.json({ error: "forbidden" }, 403);
       return c.json({ error: "not_found" }, 404);
     }
     if (!(await requireOwnedDay(tripId, dayId))) {
@@ -432,7 +455,9 @@ tripsRouter.post(
     const session = c.get("session");
     const tripId = c.req.param("id");
     if (!tripId) return c.json({ error: "not_found" }, 404);
-    if (!(await requireMembership(tripId, session.user.id))) {
+    const access = await requireWriteAccess(tripId, session.user.id);
+    if (!access.ok) {
+      if (access.status === 403) return c.json({ error: "forbidden" }, 403);
       return c.json({ error: "not_found" }, 404);
     }
     const input = c.req.valid("json");
@@ -458,7 +483,9 @@ tripsRouter.post(
     const session = c.get("session");
     const tripId = c.req.param("id");
     if (!tripId) return c.json({ error: "not_found" }, 404);
-    if (!(await requireMembership(tripId, session.user.id))) {
+    const access = await requireWriteAccess(tripId, session.user.id);
+    if (!access.ok) {
+      if (access.status === 403) return c.json({ error: "forbidden" }, 403);
       return c.json({ error: "not_found" }, 404);
     }
     const { role } = c.req.valid("json");
@@ -480,7 +507,9 @@ tripsRouter.delete("/:id/expenses/:expenseId", async (c) => {
   const tripId = c.req.param("id");
   const expenseId = c.req.param("expenseId");
   if (!tripId || !expenseId) return c.json({ error: "not_found" }, 404);
-  if (!(await requireMembership(tripId, session.user.id))) {
+  const access = await requireWriteAccess(tripId, session.user.id);
+  if (!access.ok) {
+    if (access.status === 403) return c.json({ error: "forbidden" }, 403);
     return c.json({ error: "not_found" }, 404);
   }
   await db
