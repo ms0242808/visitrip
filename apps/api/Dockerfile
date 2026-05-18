@@ -11,10 +11,18 @@ COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 RUN npm run build -w @visitrip/api
 
+FROM node:20-alpine AS prod-deps
+WORKDIR /repo
+COPY package.json package-lock.json* ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/db/package.json ./packages/db/
+RUN npm install --omit=dev --workspace @visitrip/api --include-workspace-root
+
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /repo/node_modules ./node_modules
+COPY --from=prod-deps /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/api/dist ./dist
 COPY --from=build /repo/packages/db/migrations ./migrations
 EXPOSE 3001
