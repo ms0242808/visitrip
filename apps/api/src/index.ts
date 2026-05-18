@@ -8,6 +8,7 @@ import { logger } from "hono/logger";
 import { runMigrations } from "@visitrip/db";
 import { auth } from "./auth";
 import { attachRealtime } from "./realtime/server";
+import { flushAll } from "./realtime/docs";
 import { invitesRouter } from "./routes/invites";
 import { tripsRouter } from "./routes/trips";
 
@@ -50,3 +51,20 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
 });
 
 attachRealtime(server as unknown as HttpServer);
+
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[api] received ${signal}, flushing Yjs state`);
+  try {
+    await flushAll();
+  } catch (e) {
+    console.error("[api] flushAll failed during shutdown", e);
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

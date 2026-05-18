@@ -9,6 +9,7 @@ interface DocEntry {
   awareness: Awareness;
   persistTimer: NodeJS.Timeout | null;
   dirty: boolean;
+  clients: number;
 }
 
 const docs = new Map<string, DocEntry>();
@@ -51,6 +52,7 @@ async function hydrate(tripId: string): Promise<DocEntry> {
     awareness: new Awareness(doc),
     persistTimer: null,
     dirty: false,
+    clients: 0,
   };
 
   doc.on("update", () => {
@@ -91,4 +93,41 @@ export async function getDoc(tripId: string): Promise<DocEntry> {
   });
   loading.set(tripId, promise);
   return promise;
+}
+
+export function addClient(tripId: string) {
+  const entry = docs.get(tripId);
+  if (!entry) return;
+  entry.clients += 1;
+}
+
+export async function removeClient(tripId: string) {
+  const entry = docs.get(tripId);
+  if (!entry) return;
+  entry.clients = Math.max(0, entry.clients - 1);
+  if (entry.clients === 0) {
+    if (entry.persistTimer) {
+      clearTimeout(entry.persistTimer);
+      entry.persistTimer = null;
+    }
+    await persist(tripId, entry).catch((e) =>
+      console.error(`[yjs ${tripId}] flush-on-disconnect failed`, e),
+    );
+  }
+}
+
+export async function flushAll() {
+  await Promise.all(
+    Array.from(docs.entries()).map(async ([tripId, entry]) => {
+      if (entry.persistTimer) {
+        clearTimeout(entry.persistTimer);
+        entry.persistTimer = null;
+      }
+      try {
+        await persist(tripId, entry);
+      } catch (e) {
+        console.error(`[yjs ${tripId}] flushAll persist failed`, e);
+      }
+    }),
+  );
 }

@@ -5,7 +5,7 @@ import { WebSocketServer } from "ws";
 import { schema } from "@visitrip/db";
 import { auth } from "../auth";
 import { db } from "../db";
-import { getDoc } from "./docs";
+import { addClient, getDoc, removeClient } from "./docs";
 import { attachConnection } from "./protocol";
 
 const REALTIME_PATH = "/api/realtime";
@@ -52,6 +52,10 @@ export function attachRealtime(server: HttpServer) {
         const entry = await getDoc(tripId);
         wss.handleUpgrade(req, socket, head, (ws) => {
           const clientId = nextClientId++;
+          addClient(tripId);
+          ws.on("close", () => {
+            void removeClient(tripId);
+          });
           attachConnection(ws, entry.doc, entry.awareness, clientId);
         });
       })
