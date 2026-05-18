@@ -1,7 +1,9 @@
 import { useState } from "react";
+import * as Y from "yjs";
 import type { TripDetail } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Button, IconButton } from "../components/ui";
+import { useTripDoc, useYArray } from "../lib/yjs";
 
 interface PanelProps {
   trip: TripDetail;
@@ -193,18 +195,67 @@ export function ExpensesPanel({ trip }: PanelProps) {
   );
 }
 
-export function PackingPanel({ trip }: PanelProps) {
-  const [items, setItems] = useState(() => trip.packing.map((p) => ({ ...p })));
+interface PackingRow {
+  id: string;
+  category: string;
+  label: string;
+  done: boolean;
+}
+
+function readPackingRow(m: Y.Map<unknown>): PackingRow {
+  return {
+    id: String(m.get("id") ?? ""),
+    category: String(m.get("category") ?? "Other"),
+    label: String(m.get("label") ?? ""),
+    done: Boolean(m.get("done")),
+  };
+}
+
+export function PackingPanel(_props: PanelProps) {
+  const { packing } = useTripDoc();
+  const maps = useYArray(packing);
+  const items = maps.map(readPackingRow);
   const groups = Array.from(new Set(items.map((it) => it.category)));
-  const toggle = (id: string) =>
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
   const done = items.filter((it) => it.done).length;
+  const [adding, setAdding] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  const toggle = (id: string) => {
+    for (let i = 0; i < packing.length; i++) {
+      const m = packing.get(i);
+      if (m.get("id") === id) {
+        m.set("done", !m.get("done"));
+        return;
+      }
+    }
+  };
+
+  const remove = (id: string) => {
+    for (let i = 0; i < packing.length; i++) {
+      if (packing.get(i).get("id") === id) {
+        packing.delete(i, 1);
+        return;
+      }
+    }
+  };
+
+  const addItem = (category: string, label: string) => {
+    if (!label.trim()) return;
+    const m = new Y.Map<unknown>();
+    m.set("id", crypto.randomUUID());
+    m.set("category", category);
+    m.set("label", label.trim());
+    m.set("done", false);
+    packing.push([m]);
+  };
+
+  const addCategoryFromScratch = () => addItem("Essentials", "New item");
 
   if (items.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <EmptyPanel message="Nothing on the packing list yet." />
-        <Button variant="secondary" block icon="plus">
+        <Button variant="secondary" block icon="plus" onClick={addCategoryFromScratch}>
           Add item
         </Button>
       </div>
@@ -228,9 +279,9 @@ export function PackingPanel({ trip }: PanelProps) {
             <div className="vt-list-header">{g}</div>
             <div className="vt-list">
               {its.map((it) => (
-                <label key={it.id} className="vt-list-row" style={{ cursor: "pointer" }}>
+                <div key={it.id} className="vt-list-row" style={{ cursor: "pointer" }}>
                   <Checkbox checked={it.done} onChange={() => toggle(it.id)} />
-                  <div className="vt-list-row__content">
+                  <div className="vt-list-row__content" onClick={() => toggle(it.id)}>
                     <div
                       className="vt-list-row__title"
                       style={{
@@ -241,15 +292,62 @@ export function PackingPanel({ trip }: PanelProps) {
                       {it.label}
                     </div>
                   </div>
-                </label>
+                  <IconButton name="close" onClick={() => remove(it.id)} />
+                </div>
               ))}
+              {adding === g ? (
+                <form
+                  className="vt-list-row"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addItem(g, draft);
+                    setDraft("");
+                    setAdding(null);
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onBlur={() => {
+                      if (draft.trim()) addItem(g, draft);
+                      setDraft("");
+                      setAdding(null);
+                    }}
+                    placeholder="Add item…"
+                    style={{
+                      flex: 1,
+                      border: 0,
+                      background: "transparent",
+                      font: "inherit",
+                      outline: "none",
+                      color: "inherit",
+                    }}
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  className="vt-list-row"
+                  onClick={() => setAdding(g)}
+                  style={{
+                    width: "100%",
+                    border: 0,
+                    background: "transparent",
+                    color: "var(--vt-accent)",
+                    cursor: "pointer",
+                    font: "inherit",
+                    textAlign: "left",
+                  }}
+                >
+                  <Icon name="plus" size={16} />
+                  Add to {g}
+                </button>
+              )}
             </div>
           </div>
         );
       })}
-      <Button variant="secondary" block icon="plus">
-        Add item
-      </Button>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { TabBar } from "./components/ui";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { useTrip } from "./lib/trips";
 import { api } from "./lib/api";
+import { TripDocProvider } from "./lib/yjs";
 import { SignIn, SignUp } from "./screens/auth";
 import { TripsScreen } from "./screens/trips";
 import { TripScreen } from "./screens/trip";
@@ -195,6 +196,7 @@ interface TripViewProps {
 }
 
 function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripViewProps) {
+  const { state } = useAuth();
   const { trip, loading, error } = useTrip(tripId);
   if (loading && !trip) return <LoadingScreen />;
   if (error || !trip) {
@@ -204,14 +206,17 @@ function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripVi
       </CenteredMessage>
     );
   }
+  if (state.status !== "authed") return null;
   return (
-    <TripScreen
-      trip={trip}
-      onBack={onBack}
-      onOpenDay={onOpenDay}
-      onShare={onShare}
-      onOpenSettings={onOpenSettings}
-    />
+    <TripDocProvider tripId={tripId} user={state.user}>
+      <TripScreen
+        trip={trip}
+        onBack={onBack}
+        onOpenDay={onOpenDay}
+        onShare={onShare}
+        onOpenSettings={onOpenSettings}
+      />
+    </TripDocProvider>
   );
 }
 

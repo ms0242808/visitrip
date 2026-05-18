@@ -8,6 +8,13 @@
       "when": 1779076174014,
       "tag": "0000_pale_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779078083151,
+      "tag": "0001_easy_mac_gargan",
+      "breakpoints": true
     }
   ]
 }

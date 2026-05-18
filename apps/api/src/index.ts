@@ -1,8 +1,10 @@
 import { serve } from "@hono/node-server";
+import type { Server as HttpServer } from "node:http";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { auth } from "./auth";
+import { attachRealtime } from "./realtime/server";
 import { tripsRouter } from "./routes/trips";
 
 const app = new Hono();
@@ -22,9 +24,9 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.route("/api/trips", tripsRouter);
 
-// TODO(realtime): mount Yjs WebSocket server for collaborative trip editing
-
 const port = Number(process.env.PORT ?? 3001);
-serve({ fetch: app.fetch, port }, (info) => {
+const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);
 });
+
+attachRealtime(server as unknown as HttpServer);

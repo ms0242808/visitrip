@@ -1,8 +1,20 @@
 import { sql } from "drizzle-orm";
-import { boolean, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, customType, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
 const ts = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" }).notNull().default(sql`now()`);
+
+const bytea = customType<{ data: Uint8Array; notNull: true; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+  toDriver(value) {
+    return Buffer.from(value);
+  },
+  fromDriver(value) {
+    return new Uint8Array(value);
+  },
+});
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -136,6 +148,14 @@ export const packingItem = pgTable("packing_item", {
   label: text("label").notNull(),
   done: boolean("done").notNull().default(false),
   position: integer("position").notNull().default(0),
+});
+
+export const tripYjsState = pgTable("trip_yjs_state", {
+  tripId: text("trip_id")
+    .primaryKey()
+    .references(() => trip.id, { onDelete: "cascade" }),
+  state: bytea("state").notNull(),
+  updatedAt: ts("updated_at"),
 });
 
 export const tripDoc = pgTable("trip_doc", {

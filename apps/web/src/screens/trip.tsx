@@ -5,6 +5,7 @@ import { AvatarStack } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { Button, IconButton, NavBar } from "../components/ui";
 import { daysBetween, fmtRange } from "../lib/format";
+import { useConnection, usePresence } from "../lib/yjs";
 import { DocsPanel, ExpensesPanel, MapPanel, PackingPanel } from "./trip-panels";
 
 type TripTab = "itinerary" | "map" | "expenses" | "packing" | "docs";
@@ -20,6 +21,9 @@ interface TripScreenProps {
 export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }: TripScreenProps) {
   const [tab, setTab] = useState<TripTab>("itinerary");
   const [scrolled, setScrolled] = useState(false);
+  const peers = usePresence();
+  const { connected } = useConnection();
+  const livePeerIds = new Set(peers.map((p) => p.user.id));
 
   return (
     <div className="vt-screen vt-screen-grouped">
@@ -65,13 +69,15 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
 
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="vt-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-            <AvatarStack people={trip.members} max={4} size={32} />
+            <PresenceStack members={trip.members} livePeerIds={livePeerIds} />
             <div style={{ flex: 1, fontSize: 13, color: "var(--vt-label-secondary)" }}>
               <b style={{ color: "var(--vt-label)" }}>
                 {trip.members.length} {trip.members.length === 1 ? "traveler" : "travelers"}
               </b>
               <div style={{ color: "var(--vt-label-tertiary)" }}>
-                {trip.members.map((m) => m.name.split(" ")[0]).join(" · ")}
+                {peers.length > 0
+                  ? `${peers.length} here now · ${connected ? "live" : "reconnecting…"}`
+                  : trip.members.map((m) => m.name.split(" ")[0]).join(" · ")}
               </div>
             </div>
             <Button size="sm" variant="ghost" icon="plus" onClick={onShare}>
@@ -185,6 +191,34 @@ function ItineraryList({ trip, onOpenDay }: ItineraryListProps) {
 interface DayChipProps {
   date: string;
   accent?: boolean;
+}
+
+interface PresenceStackProps {
+  members: TripDetail["members"];
+  livePeerIds: Set<string>;
+}
+
+function PresenceStack({ members, livePeerIds }: PresenceStackProps) {
+  return (
+    <div style={{ position: "relative" }}>
+      <AvatarStack people={members} max={4} size={32} />
+      {livePeerIds.size > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            right: -2,
+            bottom: -2,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: "var(--vt-accent)",
+            boxShadow: "0 0 0 2px var(--vt-bg-elevated, #fff)",
+          }}
+          aria-label={`${livePeerIds.size} live now`}
+        />
+      )}
+    </div>
+  );
 }
 
 function DayChip({ date, accent }: DayChipProps) {

@@ -89,11 +89,10 @@ API listens on `:3001`, web on `:5173`. Vite dev server proxies `/api/*` and `/h
 
 ## Things not built yet (don't claim they are)
 
-- Yjs WebSocket server and y-presence wiring
 - Router (App.tsx is a state-machine, no URL routes)
-- Mutations beyond `POST /api/trips`: Day / DayItem / Expense / Packing / Doc
-  writes — schema and read endpoints exist, write endpoints don't. Drag-reorder
-  and the packing checkbox are local-only.
+- Day / DayItem / Expense / Doc mutations — schema and read endpoints exist,
+  write endpoints don't. Drag-reorder is local-only. **Packing is the
+  exception** — it's wired to Yjs and is the reference for the other panels.
 - Invite acceptance / member add — the share sheet shows a placeholder link.
 - CI, tests, linting config.
 
@@ -119,6 +118,35 @@ email+password. The handler is mounted in `apps/api/src/index.ts` at
 In docker-compose the web container's nginx proxies `/api/*` to the api
 service so the better-auth session cookie stays same-origin in production —
 matching the Vite proxy in dev.
+
+## Real-time
+
+A Yjs WebSocket server lives in `apps/api/src/realtime/`:
+
+- `server.ts` attaches a `WebSocketServer` to the http.Server, gates each
+  upgrade on the better-auth session cookie and trip-membership, and hands
+  off to `protocol.ts`.
+- `protocol.ts` implements the standard y-websocket wire format
+  (sync + awareness) using `y-protocols`. No third-party server lib.
+- `docs.ts` keeps one `Y.Doc` per trip in memory. On first connection it
+  hydrates from the `trip_yjs_state` snapshot row, or seeds from the
+  `packing_item` rows if no snapshot exists. Doc updates schedule a
+  debounced (1s) write back to `trip_yjs_state` as a binary blob.
+
+The web client (`apps/web/src/lib/yjs.tsx`) exposes `TripDocProvider`,
+`useTripDoc`, `useYArray`, `usePresence`, `useConnection`. The provider is
+mounted in `App.tsx` at the trip route so the doc lifetime matches the
+screen lifetime.
+
+`PackingPanel` is the reference: it reads from a `Y.Array<Y.Map>` and writes
+through it, so toggles / adds / removes broadcast to every other client on
+the trip. Awareness drives the green dot on the member avatar stack
+(`PresenceStack` in `screens/trip.tsx`).
+
+To make a new panel collaborative, mirror the packing pattern: pick a Y type
+on the trip doc, hydrate from Postgres in `docs.ts`'s `hydrate()` when no
+snapshot exists, and read/write from the React component via `useYArray`
+(or a Y.Map equivalent).
 
 ## Data flow
 
