@@ -6,6 +6,7 @@ build
 .env
 .env.local
 .env.*.local
+.dev.vars
 coverage
 .turbo
 .vite
@@ -13,3 +14,7 @@ coverage
 .tsbuildinfo
 *.tsbuildinfo
 .pnpm-store
+.next
+.open-next
+.wrangler
+next-env.d.ts
