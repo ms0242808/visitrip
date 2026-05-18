@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const coverKindSchema = z.enum(["cover-lisbon", "cover-hokkaido", "cover-cdmx"]);
+export const coverKindSchema = z.enum([
+  "cover-lisbon",
+  "cover-hokkaido",
+  "cover-cdmx",
+  "cover-coast",
+  "cover-alps",
+  "cover-desert",
+]);
 export type CoverKind = z.infer<typeof coverKindSchema>;
 
 export const roleSchema = z.enum(["owner", "editor", "viewer"]);

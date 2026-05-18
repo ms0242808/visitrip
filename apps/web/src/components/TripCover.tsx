@@ -56,6 +56,69 @@ const COVERS: Record<CoverKind, CoverDef> = {
       </g>
     ),
   },
+  "cover-coast": {
+    bg: "linear-gradient(165deg, oklch(74% 0.10 200), oklch(48% 0.13 230))",
+    art: (
+      <g>
+        <rect width="320" height="160" fill="url(#co-sky)" />
+        <defs>
+          <linearGradient id="co-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="oklch(80% 0.10 200)" />
+            <stop offset="1" stopColor="oklch(48% 0.15 230)" />
+          </linearGradient>
+        </defs>
+        <circle cx="60" cy="44" r="18" fill="oklch(96% 0.08 90)" opacity="0.85" />
+        <path d="M0 96 L60 92 L120 100 L180 90 L240 98 L320 92 L320 160 L0 160 Z" fill="oklch(38% 0.13 230)" opacity="0.5" />
+        <path d="M0 116 L60 110 L120 122 L180 110 L240 122 L320 116 L320 160 L0 160 Z" fill="oklch(30% 0.13 235)" opacity="0.75" />
+        <g stroke="oklch(96% 0.04 80)" strokeWidth="0.5" opacity="0.5">
+          <path d="M0 130 L320 126" /><path d="M0 138 L320 134" /><path d="M0 146 L320 142" />
+        </g>
+      </g>
+    ),
+  },
+  "cover-alps": {
+    bg: "linear-gradient(160deg, oklch(82% 0.04 220), oklch(46% 0.06 245))",
+    art: (
+      <g>
+        <rect width="320" height="160" fill="url(#al-sky)" />
+        <defs>
+          <linearGradient id="al-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="oklch(86% 0.04 230)" />
+            <stop offset="1" stopColor="oklch(52% 0.08 250)" />
+          </linearGradient>
+        </defs>
+        <path d="M0 110 L60 60 L100 100 L140 50 L180 92 L220 40 L260 90 L300 70 L320 96 L320 160 L0 160 Z" fill="oklch(58% 0.04 250)" opacity="0.7" />
+        <path d="M140 50 L156 70 L130 64 z" fill="white" opacity="0.95" />
+        <path d="M220 40 L236 62 L208 56 z" fill="white" opacity="0.95" />
+        <path d="M60 60 L74 80 L48 74 z" fill="white" opacity="0.85" />
+        <path d="M0 130 L60 116 L120 130 L180 118 L240 132 L320 122 L320 160 L0 160 Z" fill="oklch(70% 0.03 240)" />
+        <g fill="white" opacity="0.85">
+          <circle cx="200" cy="22" r="1.4" /><circle cx="250" cy="32" r="1.2" /><circle cx="290" cy="18" r="1.4" />
+        </g>
+      </g>
+    ),
+  },
+  "cover-desert": {
+    bg: "linear-gradient(160deg, oklch(78% 0.13 70), oklch(50% 0.14 35))",
+    art: (
+      <g>
+        <rect width="320" height="160" fill="url(#de-sky)" />
+        <defs>
+          <linearGradient id="de-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="oklch(82% 0.13 70)" />
+            <stop offset="1" stopColor="oklch(52% 0.16 35)" />
+          </linearGradient>
+        </defs>
+        <circle cx="240" cy="58" r="22" fill="oklch(95% 0.14 80)" opacity="0.9" />
+        <path d="M0 110 Q80 80 160 110 T320 110 L320 160 L0 160 Z" fill="oklch(56% 0.14 50)" opacity="0.75" />
+        <path d="M0 128 Q80 108 160 128 T320 128 L320 160 L0 160 Z" fill="oklch(44% 0.14 40)" />
+        <g fill="oklch(34% 0.13 35)" opacity="0.65">
+          <path d="M50 142 q4 -22 18 -22 q14 0 18 22 z" />
+          <path d="M250 144 q3 -16 14 -16 q11 0 14 16 z" />
+        </g>
+      </g>
+    ),
+  },
   "cover-cdmx": {
     bg: "linear-gradient(160deg, oklch(68% 0.12 145), oklch(40% 0.13 155))",
     art: (

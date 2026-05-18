@@ -14,6 +14,7 @@ import { PlaceSheet } from "./screens/place";
 import { InviteSheet } from "./screens/invite";
 import { NewTripSheet } from "./screens/newtrip";
 import { ProfileScreen } from "./screens/profile";
+import { TripSettingsSheet } from "./screens/tripsettings";
 
 type Route =
   | { screen: "home" }
@@ -25,6 +26,7 @@ type SheetState =
   | { kind: "place"; item: DayItem }
   | { kind: "invite"; tripId: string }
   | { kind: "newtrip" }
+  | { kind: "tripSettings"; tripId: string }
   | null;
 
 const TABS: Array<{ id: string; icon: string; label: string }> = [
@@ -138,7 +140,7 @@ function SignedInApp() {
             onBack={() => setRoute({ screen: "home" })}
             onOpenDay={(day) => setRoute({ screen: "day", tripId: route.tripId, dayId: day.id })}
             onShare={() => setSheet({ kind: "invite", tripId: route.tripId })}
-            onOpenSettings={() => showToast("Trip settings (coming soon)")}
+            onOpenSettings={() => setSheet({ kind: "tripSettings", tripId: route.tripId })}
           />
         )}
         {route.screen === "day" && (
@@ -164,6 +166,18 @@ function SignedInApp() {
       {sheet?.kind === "place" && <PlaceSheet item={sheet.item} onClose={() => setSheet(null)} />}
       {sheet?.kind === "invite" && (
         <InviteSheetWrapper tripId={sheet.tripId} onClose={() => setSheet(null)} />
+      )}
+      {sheet?.kind === "tripSettings" && (
+        <TripSettingsSheetWrapper
+          tripId={sheet.tripId}
+          onClose={() => setSheet(null)}
+          onDeleted={() => {
+            setSheet(null);
+            setRoute({ screen: "home" });
+            setRefreshKey((k) => k + 1);
+            showToast("Trip deleted");
+          }}
+        />
       )}
       {sheet?.kind === "newtrip" && (
         <NewTripSheet
@@ -240,6 +254,25 @@ function InviteSheetWrapper({ tripId, onClose }: { tripId: string; onClose: () =
   const { trip } = useTrip(tripId);
   if (!trip) return null;
   return <InviteSheet trip={trip} onClose={onClose} />;
+}
+
+interface TripSettingsWrapperProps {
+  tripId: string;
+  onClose: () => void;
+  onDeleted: () => void;
+}
+
+function TripSettingsSheetWrapper({ tripId, onClose, onDeleted }: TripSettingsWrapperProps) {
+  const { trip, refresh } = useTrip(tripId);
+  if (!trip) return null;
+  return (
+    <TripSettingsSheet
+      trip={trip}
+      onClose={onClose}
+      onChanged={refresh}
+      onDeleted={onDeleted}
+    />
+  );
 }
 
 function CenteredMessage({ children }: { children: ReactNode }) {

@@ -3,6 +3,46 @@ import type { CoverKind, CreateTripInput } from "@visitrip/shared";
 import { TripCover } from "../components/TripCover";
 import { Button, Field, IconButton, Input, Sheet } from "../components/ui";
 
+export const COVER_OPTIONS: CoverKind[] = [
+  "cover-lisbon",
+  "cover-hokkaido",
+  "cover-cdmx",
+  "cover-coast",
+  "cover-alps",
+  "cover-desert",
+];
+
+interface CoverPickerProps {
+  value: CoverKind;
+  onChange: (next: CoverKind) => void;
+}
+
+export function CoverPicker({ value, onChange }: CoverPickerProps) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+      {COVER_OPTIONS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          aria-label={c.replace("cover-", "")}
+          style={{
+            padding: 0,
+            border: 0,
+            cursor: "pointer",
+            borderRadius: 12,
+            overflow: "hidden",
+            boxShadow: value === c ? "0 0 0 3px var(--vt-accent)" : "none",
+            transition: "box-shadow 140ms",
+          }}
+        >
+          <TripCover kind={c} height={70} rounded={12} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 interface NewTripSheetProps {
   onClose: () => void;
   onCreate: (input: CreateTripInput) => Promise<void> | void;
@@ -55,26 +95,7 @@ export function NewTripSheet({ onClose, onCreate }: NewTripSheetProps) {
           </div>
 
           <Field label="Cover">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              {(["cover-lisbon", "cover-hokkaido", "cover-cdmx"] as CoverKind[]).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCover(c)}
-                  style={{
-                    padding: 0,
-                    border: 0,
-                    cursor: "pointer",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    boxShadow: cover === c ? "0 0 0 3px var(--vt-accent)" : "none",
-                    transition: "box-shadow 140ms",
-                  }}
-                >
-                  <TripCover kind={c} height={70} rounded={12} />
-                </button>
-              ))}
-            </div>
+            <CoverPicker value={cover} onChange={setCover} />
           </Field>
         </div>
 
