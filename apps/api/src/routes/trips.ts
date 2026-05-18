@@ -486,15 +486,34 @@ tripsRouter.post(
       return c.json({ error: "not_found" }, 404);
     }
     const { role } = c.req.valid("json");
+    const effectiveRole = role ?? "editor";
+
+    const [existing] = await db
+      .select()
+      .from(schema.tripInvite)
+      .where(
+        and(
+          eq(schema.tripInvite.tripId, tripId),
+          eq(schema.tripInvite.role, effectiveRole),
+          eq(schema.tripInvite.revoked, false),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      const body: InviteCreateResponse = { token: existing.token, role: existing.role as InviteCreateResponse["role"] };
+      return c.json(body, 200);
+    }
+
     const token = randomBytes(24).toString("base64url");
     await db.insert(schema.tripInvite).values({
       id: randomUUID(),
       tripId,
       createdBy: session.user.id,
       token,
-      role: role ?? "editor",
+      role: effectiveRole,
     });
-    const body: InviteCreateResponse = { token, role: role ?? "editor" };
+    const body: InviteCreateResponse = { token, role: effectiveRole };
     return c.json(body, 201);
   },
 );
