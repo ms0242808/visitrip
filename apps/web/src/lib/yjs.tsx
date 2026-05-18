@@ -38,7 +38,7 @@ interface TripDocProviderProps {
 }
 
 export function TripDocProvider({ tripId, user, children }: TripDocProviderProps) {
-  const value = useMemo<TripDocValue>(() => {
+  const [value] = useState<TripDocValue>(() => {
     const doc = new Y.Doc();
     const wsUrl = buildWsUrl(tripId);
     const parsed = new URL(wsUrl);
@@ -55,7 +55,7 @@ export function TripDocProvider({ tripId, user, children }: TripDocProviderProps
       provider,
       packing: doc.getArray<Y.Map<unknown>>("packing"),
     };
-  }, [tripId, user.id, user.name]);
+  });
 
   useEffect(() => {
     return () => {

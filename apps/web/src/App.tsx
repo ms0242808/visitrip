@@ -291,7 +291,7 @@ function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripVi
   }
   if (state.status !== "authed") return null;
   return (
-    <TripDocProvider tripId={tripId} user={state.user}>
+    <TripDocProvider key={tripId} tripId={tripId} user={state.user}>
       <TripScreen
         trip={trip}
         onBack={onBack}
