@@ -81,20 +81,14 @@ export function useTripDocOptional(): TripDocValue | null {
 export function useYArray<T>(arr: Y.Array<T>): T[] {
   const subscribe = useMemo(
     () => (cb: () => void) => {
-      arr.observeDeep(cb);
-      return () => arr.unobserveDeep(cb);
+      const handler = () => cb();
+      arr.observeDeep(handler);
+      return () => arr.unobserveDeep(handler);
     },
     [arr],
   );
-  const [snapshot, setSnapshot] = useState<T[]>(() => arr.toArray());
-  useEffect(() => {
-    const update = () => setSnapshot(arr.toArray());
-    arr.observeDeep(update);
-    update();
-    return () => arr.unobserveDeep(update);
-  }, [arr]);
-  void subscribe;
-  return snapshot;
+  const getSnapshot = () => arr.toArray();
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 export function usePresence(): PresencePeer[] {
