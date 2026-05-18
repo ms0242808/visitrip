@@ -98,6 +98,15 @@ function RoutedApp() {
     setAcceptMode("preview");
   };
 
+  useEffect(() => {
+    if (state.status === "anon" && acceptMode === "auth" && !pendingInvite) {
+      setAcceptMode("preview");
+    }
+    if (state.status === "authed" && acceptMode === "auth" && pendingInvite) {
+      setAcceptMode("preview");
+    }
+  }, [state.status, acceptMode, pendingInvite]);
+
   if (state.status === "loading") return <LoadingScreen />;
 
   if (pendingInvite && acceptMode === "preview") {
@@ -118,10 +127,6 @@ function RoutedApp() {
 
   if (state.status === "anon") {
     return <AuthFlow inviteBanner={!!pendingInvite} />;
-  }
-
-  if (pendingInvite && acceptMode === "auth") {
-    setAcceptMode("preview");
   }
 
   return <SignedInApp initialTripId={openTripOnReady} onConsumedInitialTrip={() => setOpenTripOnReady(null)} />;
