@@ -43,7 +43,7 @@ export function TripDocProvider({ tripId, user, children }: TripDocProviderProps
     const wsUrl = buildWsUrl(tripId);
     const parsed = new URL(wsUrl);
     const baseUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
-    const provider = new WebsocketProvider(baseUrl, "", doc, {
+    const provider = new WebsocketProvider(baseUrl, tripId, doc, {
       params: { trip: tripId },
       connect: true,
     });
