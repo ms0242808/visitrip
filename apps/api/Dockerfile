@@ -14,6 +14,7 @@ RUN npm run build -w @visitrip/api
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/api/dist ./dist
 EXPOSE 3001
 CMD ["node", "dist/index.js"]
