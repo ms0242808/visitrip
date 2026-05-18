@@ -23,7 +23,6 @@ Open-source app for organizing, sharing, and real-time collaborating on trips wi
 ### Critical
 
 - **y-websocket cross-tab packing leak** — `apps/web/src/lib/yjs.tsx:46` passes `""` as the y-websocket roomname, so the `BroadcastChannel` name is identical for every trip. Two tabs on different trips will cross-pollinate packing items via BC and then persist the corrupted state via WS. Pass `tripId` as the roomname.
-- **Documented self-host migration command is broken** — `docker compose run --rm api npm run db:migrate -w @visitrip/db` fails because the api runtime image has no `package.json`, no `packages/db/` source, and no `migrations/` on disk. Either bake migrations into API startup, ship a `migrate` sidecar service in compose, or revise this README to run migrations from the host before bringing the api container up.
 - **`engines.node: ">=20"` is too loose** — `--env-file` (used in `apps/api/package.json:8`) requires Node ≥20.6, and `process.loadEnvFile` (used in `packages/db/drizzle.config.ts:3`) requires Node ≥20.12. Bump `engines.node` in root `package.json` accordingly.
 
 ### Important
@@ -138,8 +137,8 @@ Tables: `user`, `session`, `account`, `verification` (better-auth) plus `trip`, 
 cp .env.example .env
 # edit .env — at minimum, set BETTER_AUTH_SECRET (32+ random bytes)
 docker compose up --build -d
-# one-time migration (or bake into your deploy script)
-docker compose run --rm api npm run db:migrate --workspace @visitrip/db
+# Migrations run automatically on api boot.
+# To opt out, set AUTO_MIGRATE=false in .env and run them yourself.
 ```
 
 Stack:

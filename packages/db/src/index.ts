@@ -11,3 +11,4 @@ export function createDb(connectionString: string) {
 export type Db = ReturnType<typeof createDb>;
 export { schema };
 export * from "./schema.ts";
+export { runMigrations } from "./migrate.ts";
