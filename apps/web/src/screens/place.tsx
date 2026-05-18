@@ -1,5 +1,4 @@
-import type { DayItem } from "../data/types";
-import { Avatar } from "../components/Avatar";
+import type { DayItem } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Button, IconButton, Sheet } from "../components/ui";
 
@@ -87,20 +86,6 @@ export function PlaceSheet({ item, onClose }: PlaceSheetProps) {
           </div>
         </div>
 
-        <div style={{ marginTop: 22 }}>
-          <div className="vt-list-header">Notes from your group</div>
-          <div className="vt-card" style={{ padding: "12px 14px", display: "flex", gap: 10 }}>
-            <Avatar name="Theo Vance" size={28} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                Theo <span style={{ fontWeight: 400, color: "var(--vt-label-tertiary)" }}>· 2d ago</span>
-              </div>
-              <div style={{ fontSize: 14, lineHeight: 1.45, marginTop: 2 }}>
-                Tickets are timed — we're booked for the 10:00 slot. Grab pastéis at Pastéis de Belém after (the line moves fast on weekdays).
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </Sheet>
   );

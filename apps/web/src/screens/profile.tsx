@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { ME } from "../data/seed";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { Badge, Button, IconButton, NavBar, Switch } from "../components/ui";
+import { useAuth } from "../lib/auth";
 
 interface ProfileScreenProps {
-  onSignOut: () => void;
   onBack?: () => void;
 }
 
-export function ProfileScreen({ onSignOut, onBack }: ProfileScreenProps) {
+export function ProfileScreen({ onBack }: ProfileScreenProps) {
+  const { state, signOut } = useAuth();
+  const user = state.user;
+  if (!user) return null;
+
   return (
     <div className="vt-screen vt-screen-grouped">
       <NavBar leading={onBack ? <IconButton name="chevronL" onClick={onBack} /> : null} title="You" />
@@ -24,12 +27,12 @@ export function ProfileScreen({ onSignOut, onBack }: ProfileScreenProps) {
             marginBottom: 18,
           }}
         >
-          <Avatar name={ME.name} size={56} />
+          <Avatar name={user.name} size={56} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 17, fontWeight: 600 }}>{ME.name}</div>
-            <div style={{ fontSize: 13, color: "var(--vt-label-tertiary)" }}>mira@castellan.studio</div>
+            <div style={{ fontSize: 17, fontWeight: 600 }}>{user.name}</div>
+            <div style={{ fontSize: 13, color: "var(--vt-label-tertiary)" }}>{user.email}</div>
             <Badge variant="accent" style={{ marginTop: 6 }}>
-              Free · 1 of 3 trips
+              Free
             </Badge>
           </div>
           <IconButton name="edit" />
@@ -38,7 +41,7 @@ export function ProfileScreen({ onSignOut, onBack }: ProfileScreenProps) {
         <div className="vt-list-header">Preferences</div>
         <div className="vt-list" style={{ marginBottom: 16 }}>
           <SettingRow icon="sun" title="Appearance" sub="Auto · matches your device" rightChevron />
-          <SettingRow icon="globe" title="Default currency" sub="EUR · €" rightChevron />
+          <SettingRow icon="globe" title="Default currency" sub="USD · $" rightChevron />
           <SettingRow icon="calendar" title="Week starts on" sub="Monday" rightChevron />
           <SettingRow icon="bell" title="Notifications" sub="Trip updates, expenses" rightChevron />
         </div>
@@ -47,7 +50,7 @@ export function ProfileScreen({ onSignOut, onBack }: ProfileScreenProps) {
         <div className="vt-list" style={{ marginBottom: 16 }}>
           <SettingRow icon="sync" title="Sync trips" toggle defaultOn />
           <SettingRow icon="download" title="Save offline" sub="On Wi-Fi only" toggle defaultOn />
-          <SettingRow icon="cloud" title="Last synced" sub="Just now · 2 minutes ago" />
+          <SettingRow icon="cloud" title="Last synced" sub="Just now" />
         </div>
 
         <div className="vt-list-header">Account</div>
@@ -57,19 +60,9 @@ export function ProfileScreen({ onSignOut, onBack }: ProfileScreenProps) {
           <SettingRow icon="info" title="Privacy & terms" rightChevron />
         </div>
 
-        <Button variant="ghost" block onClick={onSignOut} style={{ color: "var(--vt-destructive)" }}>
+        <Button variant="ghost" block onClick={() => void signOut()} style={{ color: "var(--vt-destructive)" }}>
           Sign out
         </Button>
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: 12,
-            color: "var(--vt-label-quaternary)",
-            marginTop: 20,
-          }}
-        >
-          Visitrip · v0.4.0 (mockup)
-        </div>
       </div>
     </div>
   );
@@ -89,13 +82,16 @@ function SettingRow({ icon, title, sub, rightChevron, toggle, defaultOn }: Setti
   return (
     <div className="vt-list-row" style={{ cursor: rightChevron || toggle ? "pointer" : "default" }}>
       <span
-        className="vt-row-icon"
         style={{
           width: 32,
           height: 32,
           borderRadius: 8,
           background: "var(--vt-fill-tertiary)",
           color: "var(--vt-label-secondary)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
         }}
       >
         <Icon name={icon} size={16} />

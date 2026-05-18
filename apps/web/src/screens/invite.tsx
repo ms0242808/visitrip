@@ -1,21 +1,22 @@
 import { useMemo, useState } from "react";
-import type { Trip } from "../data/types";
-import { ME, personById } from "../data/seed";
+import type { TripDetail } from "@visitrip/shared";
 import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icon";
 import { Badge, Button, IconButton, Sheet } from "../components/ui";
+import { useAuth } from "../lib/auth";
 
 type Permission = "edit" | "view" | "closed";
 
 interface InviteSheetProps {
-  trip: Trip;
+  trip: TripDetail;
   onClose: () => void;
 }
 
 export function InviteSheet({ trip, onClose }: InviteSheetProps) {
+  const { state } = useAuth();
+  const meId = state.user?.id;
   const [copied, setCopied] = useState(false);
   const [perm, setPerm] = useState<Permission>("edit");
-  const members = trip.members.map((id) => personById(id));
   const url = useMemo(
     () => `visitrip.app/t/${trip.id}/join#${Math.random().toString(36).slice(2, 8)}`,
     [trip.id],
@@ -126,19 +127,19 @@ export function InviteSheet({ trip, onClose }: InviteSheetProps) {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <div className="vt-list-header">People · {members.length}</div>
+          <div className="vt-list-header">People · {trip.members.length}</div>
           <div className="vt-list">
-            {members.map((m, i) => (
+            {trip.members.map((m) => (
               <div key={m.id} className="vt-list-row">
                 <Avatar name={m.name} size={36} />
                 <div className="vt-list-row__content">
                   <div className="vt-list-row__title">
                     {m.name}
-                    {m.id === ME.id ? " (you)" : ""}
+                    {m.id === meId ? " (you)" : ""}
                   </div>
                   <div className="vt-list-row__subtitle">{m.role}</div>
                 </div>
-                <Badge variant={i === 0 ? "accent" : ""}>{m.role}</Badge>
+                <Badge variant={m.role === "owner" ? "accent" : ""}>{m.role}</Badge>
               </div>
             ))}
           </div>

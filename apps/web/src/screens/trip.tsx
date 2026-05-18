@@ -1,6 +1,5 @@
 import { useState } from "react";
-import type { Day, Trip } from "../data/types";
-import { personById } from "../data/seed";
+import type { Day, TripDetail } from "@visitrip/shared";
 import { TripCover } from "../components/TripCover";
 import { AvatarStack } from "../components/Avatar";
 import { Icon } from "../components/Icon";
@@ -11,7 +10,7 @@ import { DocsPanel, ExpensesPanel, MapPanel, PackingPanel } from "./trip-panels"
 type TripTab = "itinerary" | "map" | "expenses" | "packing" | "docs";
 
 interface TripScreenProps {
-  trip: Trip;
+  trip: TripDetail;
   onBack: () => void;
   onOpenDay: (day: Day) => void;
   onShare: () => void;
@@ -21,7 +20,6 @@ interface TripScreenProps {
 export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }: TripScreenProps) {
   const [tab, setTab] = useState<TripTab>("itinerary");
   const [scrolled, setScrolled] = useState(false);
-  const members = trip.members.map((id) => personById(id));
 
   return (
     <div className="vt-screen vt-screen-grouped">
@@ -48,7 +46,7 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
                 opacity: 0.85,
               }}
             >
-              {trip.location} · {daysBetween(trip.start, trip.end) + 1} days
+              {trip.location} · {daysBetween(trip.startDate, trip.endDate) + 1} days
             </div>
             <div
               style={{
@@ -61,17 +59,19 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
             >
               {trip.title}
             </div>
-            <div style={{ fontSize: 14, marginTop: 4, opacity: 0.9 }}>{fmtRange(trip.start, trip.end)}</div>
+            <div style={{ fontSize: 14, marginTop: 4, opacity: 0.9 }}>{fmtRange(trip.startDate, trip.endDate)}</div>
           </div>
         </TripCover>
 
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="vt-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-            <AvatarStack people={members} max={4} size={32} />
+            <AvatarStack people={trip.members} max={4} size={32} />
             <div style={{ flex: 1, fontSize: 13, color: "var(--vt-label-secondary)" }}>
-              <b style={{ color: "var(--vt-label)" }}>{members.length} travelers</b>
+              <b style={{ color: "var(--vt-label)" }}>
+                {trip.members.length} {trip.members.length === 1 ? "traveler" : "travelers"}
+              </b>
               <div style={{ color: "var(--vt-label-tertiary)" }}>
-                {members.map((m) => m.name.split(" ")[0]).join(" · ")}
+                {trip.members.map((m) => m.name.split(" ")[0]).join(" · ")}
               </div>
             </div>
             <Button size="sm" variant="ghost" icon="plus" onClick={onShare}>
@@ -79,7 +79,9 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
             </Button>
           </div>
 
-          <div style={{ fontSize: 15, lineHeight: 1.5, color: "var(--vt-label-secondary)" }}>{trip.summary}</div>
+          {trip.summary && (
+            <div style={{ fontSize: 15, lineHeight: 1.5, color: "var(--vt-label-secondary)" }}>{trip.summary}</div>
+          )}
 
           <div className="vt-tabs" style={{ marginTop: 4, gap: 18 }}>
             {(
@@ -110,11 +112,25 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings }:
 }
 
 interface ItineraryListProps {
-  trip: Trip;
+  trip: TripDetail;
   onOpenDay: (day: Day) => void;
 }
 
 function ItineraryList({ trip, onOpenDay }: ItineraryListProps) {
+  if (trip.days.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "32px 16px",
+          textAlign: "center",
+          fontSize: 14,
+          color: "var(--vt-label-tertiary)",
+        }}
+      >
+        No days yet. Add days to start planning.
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {trip.days.map((day, i) => {

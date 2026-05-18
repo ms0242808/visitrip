@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Button, Field, Input } from "../components/ui";
 import { BrandMark } from "../components/Brand";
+import { useAuth } from "../lib/auth";
 
 interface AuthShellProps {
   title: ReactNode;
@@ -49,23 +50,29 @@ function AuthShell({ children, title, sub, footer }: AuthShellProps) {
 }
 
 interface SignInProps {
-  onSubmit: () => void;
   onSwitch: () => void;
   onForgot: () => void;
 }
 
-export function SignIn({ onSubmit, onSwitch, onForgot }: SignInProps) {
-  const [email, setEmail] = useState("mira@castellan.studio");
-  const [password, setPassword] = useState("••••••••");
+export function SignIn({ onSwitch, onForgot }: SignInProps) {
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const submit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      await signIn(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed");
       setLoading(false);
-      onSubmit();
-    }, 700);
+    }
   };
+
   return (
     <AuthShell
       title="Welcome back"
@@ -81,16 +88,17 @@ export function SignIn({ onSubmit, onSwitch, onForgot }: SignInProps) {
     >
       <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 360, margin: "0 auto" }}>
         <Field label="Email">
-          <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+          <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
         </Field>
         <Field label="Password">
-          <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+          <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
         </Field>
         <div style={{ textAlign: "right" }}>
           <a onClick={onForgot} style={{ fontSize: 13, color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>
             Forgot password?
           </a>
         </div>
+        {error && <div style={{ fontSize: 13, color: "var(--vt-destructive)" }}>{error}</div>}
         <Button type="submit" variant="primary" size="lg" block loading={loading}>
           Sign in
         </Button>
@@ -100,14 +108,29 @@ export function SignIn({ onSubmit, onSwitch, onForgot }: SignInProps) {
 }
 
 interface SignUpProps {
-  onSubmit: () => void;
   onSwitch: () => void;
 }
 
-export function SignUp({ onSubmit, onSwitch }: SignUpProps) {
+export function SignUp({ onSwitch }: SignUpProps) {
+  const { signUp } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await signUp(email, password, name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-up failed");
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthShell
       title="Plan trips together"
@@ -122,85 +145,27 @@ export function SignUp({ onSubmit, onSwitch }: SignUpProps) {
       }
     >
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}
+        onSubmit={submit}
         style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 360, margin: "0 auto" }}
       >
         <Field label="Your name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mira Castellan" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mira Castellan" required />
         </Field>
         <Field label="Email">
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
         </Field>
-        <Field label="Password" hint="At least 10 characters.">
-          <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
+        <Field label="Password" hint="At least 8 characters.">
+          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
         </Field>
         <div style={{ fontSize: 12, color: "var(--vt-label-tertiary)", lineHeight: 1.5 }}>
           By continuing, you agree to the <a style={{ color: "var(--vt-accent)" }}>Terms</a> and{" "}
           <a style={{ color: "var(--vt-accent)" }}>Privacy Policy</a>.
         </div>
-        <Button type="submit" variant="primary" size="lg" block>
+        {error && <div style={{ fontSize: 13, color: "var(--vt-destructive)" }}>{error}</div>}
+        <Button type="submit" variant="primary" size="lg" block loading={loading}>
           Create account
         </Button>
       </form>
-    </AuthShell>
-  );
-}
-
-interface VerifyProps {
-  email: string;
-  onSubmit: () => void;
-  onBack: () => void;
-}
-
-export function Verify({ email, onSubmit, onBack }: VerifyProps) {
-  const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
-  const refs: Array<HTMLInputElement | null> = [];
-  const setAt = (i: number, v: string) => {
-    const c = [...code];
-    c[i] = v.slice(-1);
-    setCode(c);
-    if (v && i < 5) refs[i + 1]?.focus();
-  };
-  return (
-    <AuthShell
-      title="Check your email"
-      sub={
-        <>
-          We sent a 6-digit code to <b style={{ color: "var(--vt-label)" }}>{email}</b>
-        </>
-      }
-    >
-      <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 20 }}>
-        {code.map((c, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              refs[i] = el;
-            }}
-            value={c}
-            onChange={(e) => setAt(i, e.target.value)}
-            inputMode="numeric"
-            maxLength={1}
-            className="vt-input"
-            style={{ width: 44, height: 56, textAlign: "center", fontSize: 22, fontWeight: 600, padding: 0 }}
-          />
-        ))}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 360, margin: "0 auto" }}>
-        <Button variant="primary" size="lg" block onClick={onSubmit}>
-          Verify
-        </Button>
-        <Button variant="ghost" block onClick={onBack}>
-          Wrong email? Go back
-        </Button>
-        <div style={{ textAlign: "center", fontSize: 13, color: "var(--vt-label-tertiary)", marginTop: 6 }}>
-          Didn't get it?{" "}
-          <a style={{ color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>Resend in 0:42</a>
-        </div>
-      </div>
     </AuthShell>
   );
 }

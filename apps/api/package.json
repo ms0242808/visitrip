@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.4.1",
     "@visitrip/db": "*",
     "@visitrip/shared": "*",
     "better-auth": "^1.1.0",

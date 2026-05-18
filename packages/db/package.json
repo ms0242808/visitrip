@@ -15,11 +15,11 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "drizzle-orm": "^0.36.4",
+    "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.28.1",
+    "drizzle-kit": "^0.31.5",
     "typescript": "^5.6.3"
   }
 }

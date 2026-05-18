@@ -1,25 +1,21 @@
 import { useState } from "react";
-import type { Trip } from "../data/types";
-import { PEOPLE, personById } from "../data/seed";
+import type { TripSummary } from "@visitrip/shared";
 import { TripCover } from "../components/TripCover";
-import { Avatar, AvatarStack } from "../components/Avatar";
 import { Wordmark } from "../components/Brand";
 import { Icon } from "../components/Icon";
 import { Button, IconButton, NavBar, Segmented } from "../components/ui";
 import { daysBetween, fmtRange } from "../lib/format";
-import type { Person } from "../data/types";
+import { useTrips } from "../lib/trips";
 
 interface TripCardProps {
-  trip: Trip;
-  onOpen: (t: Trip) => void;
-  presence?: Person[];
+  trip: TripSummary;
+  onOpen: (id: string) => void;
 }
 
-function TripCard({ trip, onOpen, presence = [] }: TripCardProps) {
-  const days = daysBetween(trip.start, trip.end) + 1;
-  const members = trip.members.map((id) => personById(id));
+function TripCard({ trip, onOpen }: TripCardProps) {
+  const days = daysBetween(trip.startDate, trip.endDate) + 1;
   return (
-    <div className="vt-card" onClick={() => onOpen(trip)} style={{ cursor: "pointer", overflow: "hidden" }}>
+    <div className="vt-card" onClick={() => onOpen(trip.id)} style={{ cursor: "pointer", overflow: "hidden" }}>
       <TripCover kind={trip.cover} height={140} rounded={0}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", height: "100%" }}>
           <div style={{ alignSelf: "flex-end" }}>
@@ -46,18 +42,6 @@ function TripCard({ trip, onOpen, presence = [] }: TripCardProps) {
               {trip.title}
             </div>
           </div>
-          {presence.length > 0 && (
-            <div style={{ display: "flex", gap: 4 }}>
-              {presence.slice(0, 3).map((p) => (
-                <Avatar
-                  key={p.id}
-                  name={p.name}
-                  size={24}
-                  style={{ boxShadow: "0 0 0 2px rgba(255,255,255,0.4)" }}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </TripCover>
       <div
@@ -71,13 +55,12 @@ function TripCard({ trip, onOpen, presence = [] }: TripCardProps) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 500, color: "var(--vt-label)" }}>
-            {fmtRange(trip.start, trip.end)}
+            {fmtRange(trip.startDate, trip.endDate)}
           </div>
           <div style={{ fontSize: 12, color: "var(--vt-label-tertiary)" }}>
-            {days} days · {members.length} travelers
+            {days} days · {trip.memberCount} {trip.memberCount === 1 ? "traveler" : "travelers"}
           </div>
         </div>
-        <AvatarStack people={members} size={26} max={4} />
       </div>
     </div>
   );
@@ -127,17 +110,18 @@ function EmptyState({ onNew }: EmptyStateProps) {
 }
 
 interface TripsScreenProps {
-  trips: Trip[];
-  onOpen: (t: Trip) => void;
+  onOpen: (id: string) => void;
   onNew: () => void;
 }
 
-export function TripsScreen({ trips, onOpen, onNew }: TripsScreenProps) {
+export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [scrolled, setScrolled] = useState(false);
-  const now = new Date("2026-04-01");
-  const upcoming = trips.filter((t) => !t.archived && new Date(t.end) >= now);
-  const past = trips.filter((t) => t.archived || new Date(t.end) < now);
+  const { trips, loading, error } = useTrips();
+
+  const now = new Date();
+  const upcoming = (trips ?? []).filter((t) => !t.archived && new Date(t.endDate) >= now);
+  const past = (trips ?? []).filter((t) => t.archived || new Date(t.endDate) < now);
   const shown = tab === "upcoming" ? upcoming : past;
 
   return (
@@ -192,18 +176,16 @@ export function TripsScreen({ trips, onOpen, onNew }: TripsScreenProps) {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "8px 16px 100px" }}>
-          {shown.length === 0 ? (
-            <EmptyState onNew={onNew} />
-          ) : (
-            shown.map((t) => (
-              <TripCard
-                key={t.id}
-                trip={t}
-                onOpen={onOpen}
-                presence={t.id === "t1" ? [PEOPLE[1]!, PEOPLE[2]!] : []}
-              />
-            ))
+          {loading && (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--vt-label-tertiary)" }}>
+              Loading…
+            </div>
           )}
+          {error && !loading && (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--vt-destructive)" }}>{error}</div>
+          )}
+          {!loading && !error && shown.length === 0 && <EmptyState onNew={onNew} />}
+          {!loading && shown.map((t) => <TripCard key={t.id} trip={t} onOpen={onOpen} />)}
         </div>
       </div>
     </div>

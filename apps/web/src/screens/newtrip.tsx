@@ -1,19 +1,23 @@
 import { useState } from "react";
-import type { CoverKind } from "../data/types";
+import type { CoverKind, CreateTripInput } from "@visitrip/shared";
 import { TripCover } from "../components/TripCover";
 import { Button, Field, IconButton, Input, Sheet } from "../components/ui";
 
 interface NewTripSheetProps {
   onClose: () => void;
-  onCreate: (input: { title: string; dest: string; start: string; end: string; cover: CoverKind }) => void;
+  onCreate: (input: CreateTripInput) => Promise<void> | void;
 }
 
 export function NewTripSheet({ onClose, onCreate }: NewTripSheetProps) {
   const [title, setTitle] = useState("");
   const [dest, setDest] = useState("");
-  const [start, setStart] = useState("2026-05-08");
-  const [end, setEnd] = useState("2026-05-15");
+  const today = new Date().toISOString().slice(0, 10);
+  const inAWeek = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const [start, setStart] = useState(today);
+  const [end, setEnd] = useState(inAWeek);
   const [cover, setCover] = useState<CoverKind>("cover-lisbon");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <Sheet open onClose={onClose} height="92%">
@@ -74,15 +78,35 @@ export function NewTripSheet({ onClose, onCreate }: NewTripSheetProps) {
           </Field>
         </div>
 
+        {error && (
+          <div style={{ color: "var(--vt-destructive)", fontSize: 13, marginTop: 12 }}>{error}</div>
+        )}
+
         <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-          <Button variant="secondary" block onClick={onClose}>
+          <Button variant="secondary" block onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
           <Button
             variant="primary"
             block
-            disabled={!title || !dest}
-            onClick={() => onCreate({ title, dest, start, end, cover })}
+            disabled={!title || !dest || submitting}
+            loading={submitting}
+            onClick={async () => {
+              setSubmitting(true);
+              setError(null);
+              try {
+                await onCreate({
+                  title,
+                  location: dest,
+                  cover,
+                  startDate: start,
+                  endDate: end,
+                });
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Failed to create trip");
+                setSubmitting(false);
+              }
+            }}
           >
             Create trip
           </Button>

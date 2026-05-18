@@ -1,10 +1,11 @@
-import { useState } from "react";
-import type { Day, DayItem, Trip } from "./data/types";
-import { TRIPS } from "./data/seed";
+import { useState, type ReactNode } from "react";
+import type { Day, DayItem } from "@visitrip/shared";
 import { Icon } from "./components/Icon";
 import { TabBar } from "./components/ui";
-import { SignIn, SignUp, Verify } from "./screens/auth";
-import { OnboardingScreen } from "./screens/onboarding";
+import { AuthProvider, useAuth } from "./lib/auth";
+import { useTrip } from "./lib/trips";
+import { api } from "./lib/api";
+import { SignIn, SignUp } from "./screens/auth";
 import { TripsScreen } from "./screens/trips";
 import { TripScreen } from "./screens/trip";
 import { DayScreen } from "./screens/day";
@@ -13,13 +14,7 @@ import { InviteSheet } from "./screens/invite";
 import { NewTripSheet } from "./screens/newtrip";
 import { ProfileScreen } from "./screens/profile";
 
-type ScreenName = "signin" | "signup" | "verify" | "onboarding" | "home" | "trip" | "day" | "profile";
-
 type Route =
-  | { screen: "signin" }
-  | { screen: "signup" }
-  | { screen: "verify"; email: string }
-  | { screen: "onboarding" }
   | { screen: "home" }
   | { screen: "trip"; tripId: string }
   | { screen: "day"; tripId: string; dayId: string }
@@ -38,119 +33,17 @@ const TABS: Array<{ id: string; icon: string; label: string }> = [
   { id: "profile", icon: "user", label: "You" },
 ];
 
-const TAB_BAR_SCREENS: ScreenName[] = ["home", "profile"];
-
 export function App() {
-  const [route, setRoute] = useState<Route>({ screen: "home" });
-  const [sheet, setSheet] = useState<SheetState>(null);
-  const [tab, setTab] = useState<string>("trips");
-  const [toast, setToast] = useState<string | null>(null);
+  return (
+    <AuthProvider>
+      <Frame>
+        <RoutedApp />
+      </Frame>
+    </AuthProvider>
+  );
+}
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2200);
-  };
-
-  const tripById = (id: string): Trip => {
-    const t = TRIPS.find((x) => x.id === id);
-    if (!t) throw new Error(`Unknown trip ${id}`);
-    return t;
-  };
-
-  const handleTab = (next: string) => {
-    setTab(next);
-    if (next === "trips") setRoute({ screen: "home" });
-    else if (next === "profile") setRoute({ screen: "profile" });
-    else if (next === "map") showToast("Discover (mock)");
-    else if (next === "inbox") showToast("Inbox (mock)");
-  };
-
-  let screen: React.ReactNode = null;
-  switch (route.screen) {
-    case "signin":
-      screen = (
-        <SignIn
-          onSubmit={() => setRoute({ screen: "onboarding" })}
-          onSwitch={() => setRoute({ screen: "signup" })}
-          onForgot={() => showToast("Reset email sent (mock)")}
-        />
-      );
-      break;
-    case "signup":
-      screen = (
-        <SignUp
-          onSubmit={() => setRoute({ screen: "verify", email: "mira@castellan.studio" })}
-          onSwitch={() => setRoute({ screen: "signin" })}
-        />
-      );
-      break;
-    case "verify":
-      screen = (
-        <Verify
-          email={route.email}
-          onSubmit={() => setRoute({ screen: "onboarding" })}
-          onBack={() => setRoute({ screen: "signup" })}
-        />
-      );
-      break;
-    case "onboarding":
-      screen = <OnboardingScreen onDone={() => setRoute({ screen: "home" })} />;
-      break;
-    case "home":
-      screen = (
-        <TripsScreen
-          trips={TRIPS}
-          onOpen={(t: Trip) => setRoute({ screen: "trip", tripId: t.id })}
-          onNew={() => setSheet({ kind: "newtrip" })}
-        />
-      );
-      break;
-    case "trip": {
-      const trip = tripById(route.tripId);
-      screen = (
-        <TripScreen
-          trip={trip}
-          onBack={() => setRoute({ screen: "home" })}
-          onOpenDay={(day: Day) => setRoute({ screen: "day", tripId: trip.id, dayId: day.id })}
-          onShare={() => setSheet({ kind: "invite", tripId: trip.id })}
-          onOpenSettings={() => showToast("Trip settings (mock)")}
-        />
-      );
-      break;
-    }
-    case "day": {
-      const trip = tripById(route.tripId);
-      const day = trip.days.find((d) => d.id === route.dayId);
-      if (!day) {
-        setRoute({ screen: "trip", tripId: trip.id });
-        break;
-      }
-      screen = (
-        <DayScreen
-          trip={trip}
-          day={day}
-          onBack={() => setRoute({ screen: "trip", tripId: trip.id })}
-          onOpenPlace={(it: DayItem) => setSheet({ kind: "place", item: it })}
-          onAdd={() => showToast("Add a plan (mock)")}
-        />
-      );
-      break;
-    }
-    case "profile":
-      screen = (
-        <ProfileScreen
-          onSignOut={() => setRoute({ screen: "signin" })}
-          onBack={() => {
-            setTab("trips");
-            setRoute({ screen: "home" });
-          }}
-        />
-      );
-      break;
-  }
-
-  const hasTabBar = TAB_BAR_SCREENS.includes(route.screen);
-
+function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="vt-frame">
       <div className="vt-frame__inner" data-theme="light">
@@ -165,30 +58,201 @@ export function App() {
             overflow: "hidden",
           }}
         >
-          <div style={{ flex: 1, minHeight: 0, position: "relative" }}>{screen}</div>
-          {hasTabBar && <TabBar value={tab} onChange={handleTab} items={TABS} />}
-
-          {sheet?.kind === "place" && <PlaceSheet item={sheet.item} onClose={() => setSheet(null)} />}
-          {sheet?.kind === "invite" && (
-            <InviteSheet trip={tripById(sheet.tripId)} onClose={() => setSheet(null)} />
-          )}
-          {sheet?.kind === "newtrip" && (
-            <NewTripSheet
-              onClose={() => setSheet(null)}
-              onCreate={() => {
-                setSheet(null);
-                showToast("Trip created");
-              }}
-            />
-          )}
-
-          {toast && (
-            <div className="vt-toast">
-              <Icon name="check" size={16} /> {toast}
-            </div>
-          )}
+          {children}
         </div>
       </div>
+    </div>
+  );
+}
+
+function RoutedApp() {
+  const { state } = useAuth();
+
+  if (state.status === "loading") return <LoadingScreen />;
+  if (state.status === "anon") return <AuthFlow />;
+  return <SignedInApp />;
+}
+
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--vt-label-tertiary)",
+        fontSize: 14,
+      }}
+    >
+      Loading…
+    </div>
+  );
+}
+
+function AuthFlow() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  return mode === "signin" ? (
+    <SignIn onSwitch={() => setMode("signup")} onForgot={() => {}} />
+  ) : (
+    <SignUp onSwitch={() => setMode("signin")} />
+  );
+}
+
+function SignedInApp() {
+  const [route, setRoute] = useState<Route>({ screen: "home" });
+  const [sheet, setSheet] = useState<SheetState>(null);
+  const [tab, setTab] = useState("trips");
+  const [toast, setToast] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2200);
+  };
+
+  const handleTab = (next: string) => {
+    setTab(next);
+    if (next === "trips") setRoute({ screen: "home" });
+    else if (next === "profile") setRoute({ screen: "profile" });
+    else if (next === "map") showToast("Discover (coming soon)");
+    else if (next === "inbox") showToast("Inbox (coming soon)");
+  };
+
+  const hasTabBar = route.screen === "home" || route.screen === "profile";
+
+  return (
+    <>
+      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+        {route.screen === "home" && (
+          <TripsScreen
+            key={refreshKey}
+            onOpen={(id) => setRoute({ screen: "trip", tripId: id })}
+            onNew={() => setSheet({ kind: "newtrip" })}
+          />
+        )}
+        {route.screen === "trip" && (
+          <TripView
+            tripId={route.tripId}
+            onBack={() => setRoute({ screen: "home" })}
+            onOpenDay={(day) => setRoute({ screen: "day", tripId: route.tripId, dayId: day.id })}
+            onShare={() => setSheet({ kind: "invite", tripId: route.tripId })}
+            onOpenSettings={() => showToast("Trip settings (coming soon)")}
+          />
+        )}
+        {route.screen === "day" && (
+          <DayView
+            tripId={route.tripId}
+            dayId={route.dayId}
+            onBack={() => setRoute({ screen: "trip", tripId: route.tripId })}
+            onOpenPlace={(item) => setSheet({ kind: "place", item })}
+            onAdd={() => showToast("Add a plan (coming soon)")}
+          />
+        )}
+        {route.screen === "profile" && (
+          <ProfileScreen
+            onBack={() => {
+              setTab("trips");
+              setRoute({ screen: "home" });
+            }}
+          />
+        )}
+      </div>
+
+      {hasTabBar && <TabBar value={tab} onChange={handleTab} items={TABS} />}
+
+      {sheet?.kind === "place" && <PlaceSheet item={sheet.item} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "invite" && (
+        <InviteSheetWrapper tripId={sheet.tripId} onClose={() => setSheet(null)} />
+      )}
+      {sheet?.kind === "newtrip" && (
+        <NewTripSheet
+          onClose={() => setSheet(null)}
+          onCreate={async (input) => {
+            await api.createTrip(input);
+            setSheet(null);
+            setRefreshKey((k) => k + 1);
+            showToast("Trip created");
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="vt-toast">
+          <Icon name="check" size={16} /> {toast}
+        </div>
+      )}
+    </>
+  );
+}
+
+interface TripViewProps {
+  tripId: string;
+  onBack: () => void;
+  onOpenDay: (day: Day) => void;
+  onShare: () => void;
+  onOpenSettings: () => void;
+}
+
+function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripViewProps) {
+  const { trip, loading, error } = useTrip(tripId);
+  if (loading && !trip) return <LoadingScreen />;
+  if (error || !trip) {
+    return (
+      <CenteredMessage>
+        {error ?? "Trip not found"}
+      </CenteredMessage>
+    );
+  }
+  return (
+    <TripScreen
+      trip={trip}
+      onBack={onBack}
+      onOpenDay={onOpenDay}
+      onShare={onShare}
+      onOpenSettings={onOpenSettings}
+    />
+  );
+}
+
+interface DayViewProps {
+  tripId: string;
+  dayId: string;
+  onBack: () => void;
+  onOpenPlace: (item: DayItem) => void;
+  onAdd: () => void;
+}
+
+function DayView({ tripId, dayId, onBack, onOpenPlace, onAdd }: DayViewProps) {
+  const { trip, loading } = useTrip(tripId);
+  if (loading && !trip) return <LoadingScreen />;
+  if (!trip) return <CenteredMessage>Trip not found</CenteredMessage>;
+  const day = trip.days.find((d) => d.id === dayId);
+  if (!day) return <CenteredMessage>Day not found</CenteredMessage>;
+  return <DayScreen trip={trip} day={day} onBack={onBack} onOpenPlace={onOpenPlace} onAdd={onAdd} />;
+}
+
+function InviteSheetWrapper({ tripId, onClose }: { tripId: string; onClose: () => void }) {
+  const { trip } = useTrip(tripId);
+  if (!trip) return null;
+  return <InviteSheet trip={trip} onClose={onClose} />;
+}
+
+function CenteredMessage({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        textAlign: "center",
+        color: "var(--vt-label-tertiary)",
+        fontSize: 14,
+      }}
+    >
+      {children}
     </div>
   );
 }

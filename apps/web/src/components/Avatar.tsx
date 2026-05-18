@@ -1,6 +1,10 @@
 import type { CSSProperties } from "react";
 import { initials, presenceColor } from "../lib/format";
-import type { Person } from "../data/types";
+
+interface AvatarPerson {
+  id: string;
+  name: string;
+}
 
 interface AvatarProps {
   name?: string;
@@ -33,7 +37,7 @@ export function Avatar({ name, size = 32, src, style }: AvatarProps) {
 }
 
 interface AvatarStackProps {
-  people: Person[];
+  people: AvatarPerson[];
   max?: number;
   size?: number;
 }

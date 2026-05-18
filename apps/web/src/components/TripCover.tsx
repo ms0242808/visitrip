@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { CoverKind } from "../data/types";
+import type { CoverKind } from "@visitrip/shared";
 
 interface CoverDef {
   bg: string;

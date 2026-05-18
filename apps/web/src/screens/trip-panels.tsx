@@ -1,44 +1,35 @@
 import { useState } from "react";
-import type { Trip } from "../data/types";
-import { personById } from "../data/seed";
-import { Avatar } from "../components/Avatar";
+import type { TripDetail } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Button, IconButton } from "../components/ui";
 
 interface PanelProps {
-  trip: Trip;
+  trip: TripDetail;
 }
 
-export function MapPanel({ trip: _trip }: PanelProps) {
-  const pins = [
-    { id: "m1", x: 32, y: 28, n: 1, name: "Memmo Alfama" },
-    { id: "m2", x: 60, y: 38, n: 2, name: "Mosteiro dos Jerónimos" },
-    { id: "m3", x: 48, y: 60, n: 3, name: "A Travessa do Fado" },
-    { id: "m4", x: 70, y: 70, n: 4, name: "Pena Palace · Sintra" },
-    { id: "m5", x: 28, y: 78, n: 5, name: "Convento do Espinheiro" },
-  ];
+function EmptyPanel({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        padding: "24px 16px",
+        textAlign: "center",
+        fontSize: 14,
+        color: "var(--vt-label-tertiary)",
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
+export function MapPanel({ trip }: PanelProps) {
+  const allItems = trip.days.flatMap((d) => d.items);
+  if (allItems.length === 0) {
+    return <EmptyPanel message="No places saved yet. Add stops to a day and they'll appear here." />;
+  }
   return (
     <div className="vt-card" style={{ overflow: "hidden" }}>
       <div className="vt-map" style={{ height: 280, position: "relative" }}>
-        <svg
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <polyline
-            points={pins.map((p) => `${p.x},${p.y}`).join(" ")}
-            stroke="var(--vt-accent)"
-            strokeWidth="0.5"
-            fill="none"
-            strokeDasharray="1.4 1"
-            opacity="0.7"
-          />
-        </svg>
-        {pins.map((p) => (
-          <div key={p.id} className="vt-pin" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-            <span>{p.n}</span>
-          </div>
-        ))}
         <div
           style={{
             position: "absolute",
@@ -55,8 +46,8 @@ export function MapPanel({ trip: _trip }: PanelProps) {
         </div>
       </div>
       <div className="vt-list" style={{ borderRadius: 0, border: "none" }}>
-        {pins.map((p, i) => (
-          <div key={p.id} className="vt-list-row">
+        {allItems.slice(0, 8).map((it, i) => (
+          <div key={it.id} className="vt-list-row">
             <span
               style={{
                 width: 26,
@@ -72,13 +63,11 @@ export function MapPanel({ trip: _trip }: PanelProps) {
                 flexShrink: 0,
               }}
             >
-              {p.n}
+              {i + 1}
             </span>
             <div className="vt-list-row__content">
-              <div className="vt-list-row__title">{p.name}</div>
-              <div className="vt-list-row__subtitle">
-                {["Stay", "Sight", "Food", "Sight", "Stay"][i]} · saved on Day {i + 1}
-              </div>
+              <div className="vt-list-row__title">{it.title}</div>
+              <div className="vt-list-row__subtitle">{it.sub || it.type}</div>
             </div>
             <Icon name="chevron" size={16} style={{ color: "var(--vt-label-quaternary)" }} />
           </div>
@@ -89,9 +78,25 @@ export function MapPanel({ trip: _trip }: PanelProps) {
 }
 
 export function ExpensesPanel({ trip }: PanelProps) {
-  const total = trip.expenses.reduce((a, e) => a + e.amount, 0);
-  const perPerson = (total / Math.max(trip.members.length, 1)).toFixed(0);
-  const pct = trip.budget.total > 0 ? Math.min(100, (total / trip.budget.total) * 100) : 0;
+  const total = trip.expenses.reduce((a, e) => a + e.amountCents, 0);
+  const budgetTotal = trip.budgetTotalCents;
+  const perPerson = trip.members.length > 0 ? Math.round(total / trip.members.length) : 0;
+  const pct = budgetTotal > 0 ? Math.min(100, (total / budgetTotal) * 100) : 0;
+  const fmt = (cents: number) =>
+    new Intl.NumberFormat("en", { style: "currency", currency: trip.currency }).format(cents / 100);
+  const memberById = new Map(trip.members.map((m) => [m.id, m]));
+
+  if (trip.expenses.length === 0 && budgetTotal === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <EmptyPanel message="No expenses yet. Track who paid for what." />
+        <Button variant="secondary" block icon="plus">
+          Add expense
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div className="vt-card" style={{ padding: 18 }}>
@@ -107,90 +112,80 @@ export function ExpensesPanel({ trip }: PanelProps) {
           Spent so far
         </div>
         <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.018em", marginTop: 4 }}>
-          €{total.toLocaleString()}{" "}
-          <span style={{ fontSize: 14, fontWeight: 500, color: "var(--vt-label-tertiary)" }}>
-            of €{trip.budget.total.toLocaleString()}
-          </span>
+          {fmt(total)}
+          {budgetTotal > 0 && (
+            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--vt-label-tertiary)" }}>
+              {" "}
+              of {fmt(budgetTotal)}
+            </span>
+          )}
         </div>
-        <div
-          style={{
-            height: 6,
-            background: "var(--vt-fill-tertiary)",
-            borderRadius: 4,
-            marginTop: 12,
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ width: `${pct}%`, height: "100%", background: "var(--vt-accent)" }} />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 10,
-            fontSize: 12,
-            color: "var(--vt-label-tertiary)",
-          }}
-        >
-          <span>€{perPerson} per person</span>
-          <span>{Math.round(pct)}% of budget</span>
-        </div>
+        {budgetTotal > 0 && (
+          <>
+            <div
+              style={{
+                height: 6,
+                background: "var(--vt-fill-tertiary)",
+                borderRadius: 4,
+                marginTop: 12,
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ width: `${pct}%`, height: "100%", background: "var(--vt-accent)" }} />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 10,
+                fontSize: 12,
+                color: "var(--vt-label-tertiary)",
+              }}
+            >
+              <span>{fmt(perPerson)} per person</span>
+              <span>{Math.round(pct)}% of budget</span>
+            </div>
+          </>
+        )}
       </div>
 
-      <div>
-        <div className="vt-list-header">Settling up</div>
-        <div className="vt-list">
-          <div className="vt-list-row">
-            <Avatar name="Theo Vance" size={32} />
-            <div className="vt-list-row__content">
-              <div className="vt-list-row__title">Theo owes you</div>
-              <div className="vt-list-row__subtitle">3 expenses</div>
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--vt-success)" }}>+€124</div>
-          </div>
-          <div className="vt-list-row">
-            <Avatar name="Anya Reyes" size={32} />
-            <div className="vt-list-row__content">
-              <div className="vt-list-row__title">You owe Anya</div>
-              <div className="vt-list-row__subtitle">1 expense</div>
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--vt-destructive)" }}>−€48</div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="vt-list-header">All expenses</div>
-        <div className="vt-list">
-          {trip.expenses.map((e) => {
-            const payer = personById(e.paidBy);
-            return (
-              <div className="vt-list-row" key={e.id}>
-                <span
-                  className="vt-row-icon"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: "var(--vt-accent-tint)",
-                    color: "var(--vt-accent)",
-                  }}
-                >
-                  <Icon name="dollar" size={18} />
-                </span>
-                <div className="vt-list-row__content">
-                  <div className="vt-list-row__title">{e.label}</div>
-                  <div className="vt-list-row__subtitle">
-                    Paid by {payer.name.split(" ")[0]} ·{" "}
-                    {new Date(e.date).toLocaleDateString("en", { month: "short", day: "numeric" })}
+      {trip.expenses.length > 0 && (
+        <div>
+          <div className="vt-list-header">All expenses</div>
+          <div className="vt-list">
+            {trip.expenses.map((e) => {
+              const payer = memberById.get(e.paidById);
+              return (
+                <div className="vt-list-row" key={e.id}>
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: "var(--vt-accent-tint)",
+                      color: "var(--vt-accent)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name="dollar" size={18} />
+                  </span>
+                  <div className="vt-list-row__content">
+                    <div className="vt-list-row__title">{e.label}</div>
+                    <div className="vt-list-row__subtitle">
+                      Paid by {payer?.name.split(" ")[0] ?? "—"} ·{" "}
+                      {new Date(e.date).toLocaleDateString("en", { month: "short", day: "numeric" })}
+                    </div>
                   </div>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{fmt(e.amountCents)}</div>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>€{e.amount}</div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
       <Button variant="secondary" block icon="plus">
         Add expense
       </Button>
@@ -198,21 +193,24 @@ export function ExpensesPanel({ trip }: PanelProps) {
   );
 }
 
-interface PackingItemFlat {
-  id: string;
-  label: string;
-  done: boolean;
-  cat: "Clothes" | "Docs" | "Other";
-}
-
 export function PackingPanel({ trip }: PanelProps) {
-  const [items, setItems] = useState<PackingItemFlat[]>(() =>
-    trip.packing.flatMap((g) => g.items.map((it) => ({ ...it, cat: g.cat }))),
-  );
-  const groups: PackingItemFlat["cat"][] = ["Clothes", "Docs", "Other"];
+  const [items, setItems] = useState(() => trip.packing.map((p) => ({ ...p })));
+  const groups = Array.from(new Set(items.map((it) => it.category)));
   const toggle = (id: string) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, done: !it.done } : it)));
   const done = items.filter((it) => it.done).length;
+
+  if (items.length === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <EmptyPanel message="Nothing on the packing list yet." />
+        <Button variant="secondary" block icon="plus">
+          Add item
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="vt-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
@@ -220,15 +218,11 @@ export function PackingPanel({ trip }: PanelProps) {
           <div style={{ fontSize: 15, fontWeight: 600 }}>
             {done} of {items.length} packed
           </div>
-          <div style={{ fontSize: 12, color: "var(--vt-label-tertiary)", marginTop: 2 }}>
-            You've got 12 days to go.
-          </div>
         </div>
         <CircleProgress value={items.length ? done / items.length : 0} size={42} />
       </div>
       {groups.map((g) => {
-        const its = items.filter((it) => it.cat === g);
-        if (!its.length) return null;
+        const its = items.filter((it) => it.category === g);
         return (
           <div key={g}>
             <div className="vt-list-header">{g}</div>
@@ -321,21 +315,35 @@ function CircleProgress({ value, size = 36, stroke = 4 }: CircleProgressProps) {
 }
 
 export function DocsPanel({ trip }: PanelProps) {
+  const memberById = new Map(trip.members.map((m) => [m.id, m]));
+  if (trip.docs.length === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <EmptyPanel message="No documents attached yet." />
+        <Button variant="secondary" block icon="plus">
+          Attach a file
+        </Button>
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div className="vt-list">
         {trip.docs.map((d) => {
-          const o = personById(d.owner);
+          const o = memberById.get(d.ownerId);
           return (
             <div className="vt-list-row" key={d.id}>
               <span
-                className="vt-row-icon"
                 style={{
                   width: 36,
                   height: 36,
                   borderRadius: 10,
                   background: "var(--vt-fill-tertiary)",
                   color: "var(--vt-label-secondary)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
                 <Icon name="doc" size={18} />
@@ -343,7 +351,7 @@ export function DocsPanel({ trip }: PanelProps) {
               <div className="vt-list-row__content">
                 <div className="vt-list-row__title">{d.label}</div>
                 <div className="vt-list-row__subtitle">
-                  {d.kind} · {d.size} · added by {o.name.split(" ")[0]}
+                  {d.kind} · {d.size} · added by {o?.name.split(" ")[0] ?? "—"}
                 </div>
               </div>
               <IconButton name="download" />

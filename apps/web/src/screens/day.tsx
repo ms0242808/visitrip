@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import type { Day, DayItem as DayItemT, Trip } from "../data/types";
+import type { Day, DayItem as DayItemT, TripDetail } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Badge, Button, IconButton, NavBar } from "../components/ui";
 
 interface DayScreenProps {
-  trip: Trip;
+  trip: TripDetail;
   day: Day;
   onBack: () => void;
   onOpenPlace: (item: DayItemT) => void;

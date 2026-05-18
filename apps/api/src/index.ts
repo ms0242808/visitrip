@@ -2,6 +2,8 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { auth } from "./auth";
+import { tripsRouter } from "./routes/trips";
 
 const app = new Hono();
 
@@ -16,7 +18,10 @@ app.use(
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// TODO(auth): mount better-auth handler at /api/auth/*
+app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+app.route("/api/trips", tripsRouter);
+
 // TODO(realtime): mount Yjs WebSocket server for collaborative trip editing
 
 const port = Number(process.env.PORT ?? 3001);

@@ -85,11 +85,33 @@ API listens on `:3001`, web on `:5173`. Vite dev server proxies `/api/*` and `/h
 
 ## Things not built yet (don't claim they are)
 
-- better-auth handler mounting and auth schema generation
 - Yjs WebSocket server and y-presence wiring
-- Any UI screens (auth, trips list, trip detail, etc.)
-- Router
-- Drizzle schema beyond an empty stub
-- CI, tests, linting config
+- Router (App.tsx is a state-machine, no URL routes)
+- Mutations beyond `POST /api/trips`: Day / DayItem / Expense / Packing / Doc
+  writes — schema and read endpoints exist, write endpoints don't. Drag-reorder
+  and the packing checkbox are local-only.
+- Invite acceptance / member add — the share sheet shows a placeholder link.
+- CI, tests, linting config.
 
-Each has a `TODO` marker at its eventual wire-up point.
+## Dev workflow now requires Postgres
+
+Before `npm run dev:api`, postgres has to be reachable at the URL in `.env`
+(`DATABASE_URL`). Easiest path:
+
+```bash
+cp .env.example .env                 # fill in BETTER_AUTH_SECRET
+docker compose up -d postgres        # or: sudo service postgresql start
+npm run db:migrate                   # apply drizzle migrations
+npm run dev                          # web + api
+```
+
+## Auth
+
+`apps/api/src/auth.ts` instantiates better-auth with the Drizzle adapter and
+email+password. The handler is mounted in `apps/api/src/index.ts` at
+`/api/auth/*`. The web client at `apps/web/src/lib/auth.tsx` exposes
+`AuthProvider` + `useAuth()`; routes gate on the session state.
+
+In docker-compose the web container's nginx proxies `/api/*` to the api
+service so the better-auth session cookie stays same-origin in production —
+matching the Vite proxy in dev.
