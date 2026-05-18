@@ -120,57 +120,46 @@ tripsRouter.get("/:id", async (c) => {
   const tripId = c.req.param("id");
   if (!tripId) return c.json({ error: "not_found" }, 404);
 
-  const membership = await db
+  const [authz] = await db
     .select()
     .from(schema.tripMember)
-    .where(eq(schema.tripMember.tripId, tripId))
-    .limit(50);
-  if (!membership.find((m) => m.userId === session.user.id)) {
-    return c.json({ error: "not_found" }, 404);
-  }
+    .where(and(eq(schema.tripMember.tripId, tripId), eq(schema.tripMember.userId, session.user.id)))
+    .limit(1);
+  if (!authz) return c.json({ error: "not_found" }, 404);
 
-  const [tripRow] = await db.select().from(schema.trip).where(eq(schema.trip.id, tripId));
+  const [tripRow, membership, days, expenses, packing, docs] = await Promise.all([
+    db.select().from(schema.trip).where(eq(schema.trip.id, tripId)).then((rows) => rows[0]),
+    db.select().from(schema.tripMember).where(eq(schema.tripMember.tripId, tripId)),
+    db.select().from(schema.day).where(eq(schema.day.tripId, tripId)).orderBy(asc(schema.day.position)),
+    db.select().from(schema.expense).where(eq(schema.expense.tripId, tripId)),
+    db.select().from(schema.packingItem).where(eq(schema.packingItem.tripId, tripId)).orderBy(asc(schema.packingItem.position)),
+    db.select().from(schema.tripDoc).where(eq(schema.tripDoc.tripId, tripId)),
+  ]);
+
   if (!tripRow) return c.json({ error: "not_found" }, 404);
 
   const memberUserIds = membership.map((m) => m.userId);
-  const userRows = memberUserIds.length
-    ? await db.select().from(schema.user).where(inArray(schema.user.id, memberUserIds))
-    : [];
-  const userById = new Map(userRows.map((u) => [u.id, u]));
-
-  const days = await db
-    .select()
-    .from(schema.day)
-    .where(eq(schema.day.tripId, tripId))
-    .orderBy(asc(schema.day.position));
   const dayIds = days.map((d) => d.id);
-  const items = dayIds.length
-    ? await db
-        .select()
-        .from(schema.dayItem)
-        .where(inArray(schema.dayItem.dayId, dayIds))
-        .orderBy(asc(schema.dayItem.position))
-    : [];
+  const [userRows, items] = await Promise.all([
+    memberUserIds.length
+      ? db.select().from(schema.user).where(inArray(schema.user.id, memberUserIds))
+      : Promise.resolve([] as Array<typeof schema.user.$inferSelect>),
+    dayIds.length
+      ? db
+          .select()
+          .from(schema.dayItem)
+          .where(inArray(schema.dayItem.dayId, dayIds))
+          .orderBy(asc(schema.dayItem.position))
+      : Promise.resolve([] as Array<typeof schema.dayItem.$inferSelect>),
+  ]);
+
+  const userById = new Map(userRows.map((u) => [u.id, u]));
   const itemsByDay = new Map<string, typeof items>();
   for (const it of items) {
     const list = itemsByDay.get(it.dayId) ?? [];
     list.push(it);
     itemsByDay.set(it.dayId, list);
   }
-
-  const expenses = await db
-    .select()
-    .from(schema.expense)
-    .where(eq(schema.expense.tripId, tripId));
-  const packing = await db
-    .select()
-    .from(schema.packingItem)
-    .where(eq(schema.packingItem.tripId, tripId))
-    .orderBy(asc(schema.packingItem.position));
-  const docs = await db
-    .select()
-    .from(schema.tripDoc)
-    .where(eq(schema.tripDoc.tripId, tripId));
 
   const detail: TripDetail = {
     id: tripRow.id,
