@@ -19,6 +19,6 @@
     "db:studio": "npm run db:studio -w @visitrip/db"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.12"
   }
 }
