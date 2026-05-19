@@ -241,6 +241,26 @@
 .vt-tabbar button[aria-current="true"] { color: var(--vt-accent); }
 .vt-tabbar button:active { transform: scale(0.94); }
 
+/* Featured tab item (e.g. "New trip" CTA) — pops a tinted chip */
+.vt-tabbar button.vt-tabbar__featured {
+  color: var(--vt-accent);
+  font-weight: 600;
+}
+.vt-tabbar__featured-chip {
+  width: 44px; height: 28px; border-radius: 10px;
+  background: var(--vt-accent-tint);
+  color: var(--vt-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background var(--vt-dur-fast), transform var(--vt-dur-fast);
+}
+.vt-tabbar button.vt-tabbar__featured:hover .vt-tabbar__featured-chip {
+  background: color-mix(in oklch, var(--vt-accent) 22%, transparent);
+}
+.vt-tabbar button.vt-tabbar__featured[aria-current="true"] .vt-tabbar__featured-chip {
+  background: var(--vt-accent);
+  color: #fff;
+}
+
 /* sidebar (desktop) */
 .vt-sidebar {
   display: flex; flex-direction: column; gap: 2px;

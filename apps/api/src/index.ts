@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import type { Server as HttpServer } from "node:http";
@@ -38,12 +39,21 @@ app.route("/api/invites", invitesRouter);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+function resolveMigrationsDir(): string {
+  if (process.env.MIGRATIONS_DIR) return process.env.MIGRATIONS_DIR;
+  // Docker image lays migrations next to dist/ (see apps/api/Dockerfile).
+  const dockerLayout = resolve(__dirname, "../migrations");
+  if (existsSync(dockerLayout)) return dockerLayout;
+  // Local dev / source layout: drizzle-kit writes them to packages/db/migrations.
+  return resolve(__dirname, "../../../packages/db/migrations");
+}
+
 async function maybeMigrate() {
   const flag = (process.env.AUTO_MIGRATE ?? "true").toLowerCase();
   if (flag === "false" || flag === "0") return;
   const url = process.env.DATABASE_URL;
   if (!url) return;
-  const folder = process.env.MIGRATIONS_DIR ?? resolve(__dirname, "../migrations");
+  const folder = resolveMigrationsDir();
   console.log(`[api] running migrations from ${folder}`);
   await runMigrations(url, folder);
 }

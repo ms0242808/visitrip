@@ -184,6 +184,7 @@ interface TabBarItem {
   id: string;
   icon: string;
   label: string;
+  featured?: boolean;
 }
 interface TabBarProps {
   value: string;
@@ -196,6 +197,22 @@ export function TabBar({ value, onChange, items }: TabBarProps) {
     <div className="vt-tabbar" role="tablist">
       {items.map((it) => {
         const selected = value === it.id;
+        if (it.featured) {
+          return (
+            <button
+              key={it.id}
+              className="vt-tabbar__featured"
+              aria-current={selected}
+              aria-label={it.label}
+              onClick={() => onChange?.(it.id)}
+            >
+              <span className="vt-tabbar__featured-chip">
+                <Icon name={it.icon} size={20} strokeWidth={2.2} />
+              </span>
+              <span>{it.label}</span>
+            </button>
+          );
+        }
         return (
           <button key={it.id} aria-current={selected} onClick={() => onChange?.(it.id)}>
             <Icon name={it.icon} size={24} filled={selected} strokeWidth={1.6} />

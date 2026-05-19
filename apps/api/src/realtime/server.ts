@@ -35,7 +35,9 @@ export function attachRealtime(server: HttpServer) {
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     const pathname = url.pathname.replace(/\/$/, "");
-    if (pathname !== REALTIME_PATH) return;
+    // y-websocket's WebsocketProvider appends "/<roomname>" to the base URL,
+    // so accept both "/api/realtime" and "/api/realtime/<anything>".
+    if (pathname !== REALTIME_PATH && !pathname.startsWith(`${REALTIME_PATH}/`)) return;
 
     const tripId = url.searchParams.get("trip");
     if (!tripId) {

@@ -126,7 +126,7 @@ export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
 
   return (
     <div className="vt-screen">
-      <NavBar scrolled={scrolled} leading={<Wordmark size={18} />} trailing={<IconButton name="bell" />} />
+      <NavBar scrolled={scrolled} leading={<Wordmark size={18} />} />
       <div className="vt-scroll" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}>
         <div style={{ padding: "4px 16px 12px" }}>
           <div

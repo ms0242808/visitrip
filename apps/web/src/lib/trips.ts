@@ -10,7 +10,7 @@ interface UseTripsResult {
   create: (input: CreateTripInput) => Promise<string>;
 }
 
-export function useTrips(): UseTripsResult {
+export function useTrips(refreshKey: number = 0): UseTripsResult {
   const [trips, setTrips] = useState<TripSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function useTrips(): UseTripsResult {
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, refreshKey]);
 
   const create = useCallback(
     async (input: CreateTripInput) => {

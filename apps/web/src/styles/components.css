@@ -105,6 +105,12 @@
 .vt-help { font-size: var(--vt-t-footnote-size); color: var(--vt-label-tertiary); }
 .vt-help--error { color: var(--vt-destructive); }
 
+/* ─── New trip — immersive header inputs (white text on cover art) ─ */
+.vt-newtrip-title-input::placeholder,
+.vt-newtrip-dest-input::placeholder { color: rgba(255,255,255,0.7); }
+.vt-newtrip-title-input,
+.vt-newtrip-dest-input { caret-color: #fff; }
+
 /* ─── Segmented control ───────────────────────────── */
 .vt-seg {
   display: inline-flex;

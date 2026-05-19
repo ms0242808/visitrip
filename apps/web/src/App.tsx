@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
-import type { Day, DayItem } from "@visitrip/shared";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Day, DayItem, TripSummary } from "@visitrip/shared";
+import { Avatar } from "./components/Avatar";
 import { Icon } from "./components/Icon";
-import { TabBar } from "./components/ui";
+import { IconButton, TabBar } from "./components/ui";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { useTrip } from "./lib/trips";
+import { useTrip, useTrips } from "./lib/trips";
 import { api } from "./lib/api";
 import { TripDocProvider } from "./lib/yjs";
 import { ForgotPassword, SignIn, SignUp } from "./screens/auth";
@@ -13,7 +14,7 @@ import { DayScreen } from "./screens/day";
 import { PlaceSheet } from "./screens/place";
 import { InviteSheet } from "./screens/invite";
 import { InviteAcceptScreen } from "./screens/inviteAccept";
-import { NewTripSheet } from "./screens/newtrip";
+import { NewTripScreen } from "./screens/newtrip";
 import { ProfileScreen } from "./screens/profile";
 import { TripSettingsSheet } from "./screens/tripsettings";
 
@@ -36,6 +37,7 @@ function clearPendingInvite() {
 
 type Route =
   | { screen: "home" }
+  | { screen: "newtrip" }
   | { screen: "trip"; tripId: string }
   | { screen: "day"; tripId: string; dayId: string }
   | { screen: "profile" };
@@ -43,14 +45,12 @@ type Route =
 type SheetState =
   | { kind: "place"; item: DayItem }
   | { kind: "invite"; tripId: string }
-  | { kind: "newtrip" }
   | { kind: "tripSettings"; tripId: string }
   | null;
 
-const TABS: Array<{ id: string; icon: string; label: string }> = [
+const TABS: Array<{ id: string; icon: string; label: string; featured?: boolean }> = [
   { id: "trips", icon: "trips", label: "Trips" },
-  { id: "map", icon: "map", label: "Discover" },
-  { id: "inbox", icon: "inbox", label: "Inbox" },
+  { id: "newtrip", icon: "plus", label: "New trip", featured: true },
   { id: "profile", icon: "user", label: "You" },
 ];
 
@@ -68,19 +68,7 @@ function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="vt-frame">
       <div className="vt-frame__inner" data-theme="light">
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            background: "var(--vt-bg)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );
@@ -107,29 +95,46 @@ function RoutedApp() {
     }
   }, [state.status, acceptMode, pendingInvite]);
 
-  if (state.status === "loading") return <LoadingScreen />;
+  if (state.status === "loading") {
+    return (
+      <div className="vt-content-root">
+        <LoadingScreen />
+      </div>
+    );
+  }
 
   if (pendingInvite && acceptMode === "preview") {
     return (
-      <InviteAcceptScreen
-        token={pendingInvite}
-        onCancel={clearInvite}
-        onSignInRequired={() => setAcceptMode("auth")}
-        onJoined={(tripId) => {
-          clearPendingInvite();
-          setPendingInvite(null);
-          setAcceptMode("preview");
-          setOpenTripOnReady(tripId);
-        }}
-      />
+      <div className="vt-content-root">
+        <InviteAcceptScreen
+          token={pendingInvite}
+          onCancel={clearInvite}
+          onSignInRequired={() => setAcceptMode("auth")}
+          onJoined={(tripId) => {
+            clearPendingInvite();
+            setPendingInvite(null);
+            setAcceptMode("preview");
+            setOpenTripOnReady(tripId);
+          }}
+        />
+      </div>
     );
   }
 
   if (state.status === "anon") {
-    return <AuthFlow inviteBanner={!!pendingInvite} />;
+    return (
+      <div className="vt-content-root">
+        <AuthFlow inviteBanner={!!pendingInvite} />
+      </div>
+    );
   }
 
-  return <SignedInApp initialTripId={openTripOnReady} onConsumedInitialTrip={() => setOpenTripOnReady(null)} />;
+  return (
+    <SignedInApp
+      initialTripId={openTripOnReady}
+      onConsumedInitialTrip={() => setOpenTripOnReady(null)}
+    />
+  );
 }
 
 function LoadingScreen() {
@@ -150,7 +155,9 @@ function LoadingScreen() {
 }
 
 function AuthFlow({ inviteBanner = false }: { inviteBanner?: boolean }) {
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(inviteBanner ? "signup" : "signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
+    inviteBanner ? "signup" : "signin",
+  );
   if (mode === "forgot") return <ForgotPassword onBack={() => setMode("signin")} />;
   return mode === "signin" ? (
     <SignIn
@@ -179,8 +186,8 @@ function SignedInApp({ initialTripId, onConsumedInitialTrip }: SignedInAppProps 
     if (initialTripId) onConsumedInitialTrip?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTripId]);
+
   const [sheet, setSheet] = useState<SheetState>(null);
-  const [tab, setTab] = useState("trips");
   const [toast, setToast] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -189,54 +196,95 @@ function SignedInApp({ initialTripId, onConsumedInitialTrip }: SignedInAppProps 
     setTimeout(() => setToast(null), 2200);
   };
 
+  const tabValue = useMemo(() => {
+    if (route.screen === "newtrip") return "newtrip";
+    if (route.screen === "profile") return "profile";
+    return "trips";
+  }, [route.screen]);
+
   const handleTab = (next: string) => {
-    setTab(next);
     if (next === "trips") setRoute({ screen: "home" });
+    else if (next === "newtrip") setRoute({ screen: "newtrip" });
     else if (next === "profile") setRoute({ screen: "profile" });
-    else if (next === "map") showToast("Discover (coming soon)");
-    else if (next === "inbox") showToast("Inbox (coming soon)");
   };
 
-  const hasTabBar = route.screen === "home" || route.screen === "profile";
+  const hasTabBar =
+    route.screen === "home" || route.screen === "profile" || route.screen === "newtrip";
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n" && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setRoute({ screen: "newtrip" });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <>
-      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        {route.screen === "home" && (
-          <TripsScreen
-            key={refreshKey}
-            onOpen={(id) => setRoute({ screen: "trip", tripId: id })}
-            onNew={() => setSheet({ kind: "newtrip" })}
-          />
-        )}
-        {route.screen === "trip" && (
-          <TripView
-            tripId={route.tripId}
-            onBack={() => setRoute({ screen: "home" })}
-            onOpenDay={(day) => setRoute({ screen: "day", tripId: route.tripId, dayId: day.id })}
-            onShare={() => setSheet({ kind: "invite", tripId: route.tripId })}
-            onOpenSettings={() => setSheet({ kind: "tripSettings", tripId: route.tripId })}
-          />
-        )}
-        {route.screen === "day" && (
-          <DayView
-            tripId={route.tripId}
-            dayId={route.dayId}
-            onBack={() => setRoute({ screen: "trip", tripId: route.tripId })}
-            onOpenPlace={(item) => setSheet({ kind: "place", item })}
-          />
-        )}
-        {route.screen === "profile" && (
-          <ProfileScreen
-            onBack={() => {
-              setTab("trips");
-              setRoute({ screen: "home" });
-            }}
-          />
+      <Sidebar
+        route={route}
+        onGoHome={() => setRoute({ screen: "home" })}
+        onGoNewTrip={() => setRoute({ screen: "newtrip" })}
+        onGoProfile={() => setRoute({ screen: "profile" })}
+        onOpenTrip={(id) => setRoute({ screen: "trip", tripId: id })}
+        refreshKey={refreshKey}
+      />
+
+      <div className="vt-content-root">
+        <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+          {route.screen === "home" && (
+            <TripsScreen
+              key={refreshKey}
+              onOpen={(id) => setRoute({ screen: "trip", tripId: id })}
+              onNew={() => setRoute({ screen: "newtrip" })}
+            />
+          )}
+          {route.screen === "newtrip" && (
+            <NewTripScreen
+              onCancel={() => setRoute({ screen: "home" })}
+              onCreate={async (input) => {
+                const created = await api.createTrip(input);
+                setRefreshKey((k) => k + 1);
+                setRoute({ screen: "trip", tripId: created.id });
+                showToast("Trip created");
+              }}
+            />
+          )}
+          {route.screen === "trip" && (
+            <TripView
+              tripId={route.tripId}
+              onBack={() => setRoute({ screen: "home" })}
+              onOpenDay={(day) => setRoute({ screen: "day", tripId: route.tripId, dayId: day.id })}
+              onShare={() => setSheet({ kind: "invite", tripId: route.tripId })}
+              onOpenSettings={() => setSheet({ kind: "tripSettings", tripId: route.tripId })}
+            />
+          )}
+          {route.screen === "day" && (
+            <DayView
+              tripId={route.tripId}
+              dayId={route.dayId}
+              onBack={() => setRoute({ screen: "trip", tripId: route.tripId })}
+              onOpenPlace={(item) => setSheet({ kind: "place", item })}
+            />
+          )}
+          {route.screen === "profile" && (
+            <ProfileScreen
+              onBack={() => {
+                setRoute({ screen: "home" });
+              }}
+            />
+          )}
+        </div>
+
+        {hasTabBar && (
+          <div className="vt-tabbar-root">
+            <TabBar value={tabValue} onChange={handleTab} items={TABS} />
+          </div>
         )}
       </div>
-
-      {hasTabBar && <TabBar value={tab} onChange={handleTab} items={TABS} />}
 
       {sheet?.kind === "place" && <PlaceSheet item={sheet.item} onClose={() => setSheet(null)} />}
       {sheet?.kind === "invite" && (
@@ -254,17 +302,6 @@ function SignedInApp({ initialTripId, onConsumedInitialTrip }: SignedInAppProps 
           }}
         />
       )}
-      {sheet?.kind === "newtrip" && (
-        <NewTripSheet
-          onClose={() => setSheet(null)}
-          onCreate={async (input) => {
-            await api.createTrip(input);
-            setSheet(null);
-            setRefreshKey((k) => k + 1);
-            showToast("Trip created");
-          }}
-        />
-      )}
 
       {toast && (
         <div className="vt-toast">
@@ -273,6 +310,203 @@ function SignedInApp({ initialTripId, onConsumedInitialTrip }: SignedInAppProps 
       )}
     </>
   );
+}
+
+interface SidebarProps {
+  route: Route;
+  onGoHome: () => void;
+  onGoNewTrip: () => void;
+  onGoProfile: () => void;
+  onOpenTrip: (id: string) => void;
+  refreshKey: number;
+}
+
+function Sidebar({ route, onGoHome, onGoNewTrip, onGoProfile, onOpenTrip, refreshKey }: SidebarProps) {
+  const { state } = useAuth();
+  const { trips } = useTrips(refreshKey);
+  const me = state.user;
+
+  const activeTripId = route.screen === "trip" || route.screen === "day" ? route.tripId : null;
+  const isHome = route.screen === "home";
+  const isNewTrip = route.screen === "newtrip";
+  const isProfile = route.screen === "profile";
+
+  const now = new Date();
+  const upcoming = (trips ?? []).filter((t) => !t.archived && new Date(t.endDate) >= now);
+  const past = (trips ?? []).filter((t) => t.archived || new Date(t.endDate) < now);
+
+  return (
+    <aside className="vt-sidebar-root" aria-label="Sidebar">
+      <div className="vt-sb-brand">
+        <span className="vt-sb-brand-mark">
+          <Icon name="logo" size={16} />
+        </span>
+        <span className="vt-sb-brand-name">Visitrip</span>
+      </div>
+
+      <nav className="vt-sidebar" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 8 }}>
+        <SidebarLink
+          icon="trips"
+          label="All trips"
+          active={isHome || (route.screen === "trip" && !activeTripId)}
+          onClick={onGoHome}
+        />
+        <SidebarLink
+          icon="plus"
+          label="New trip"
+          shortcut="⌘N"
+          accent
+          active={isNewTrip}
+          onClick={onGoNewTrip}
+        />
+        <SidebarLink icon="user" label="You" active={isProfile} onClick={onGoProfile} />
+
+        {upcoming.length > 0 && <SidebarHeading>Upcoming</SidebarHeading>}
+        {upcoming.map((t) => (
+          <SidebarTripLink
+            key={t.id}
+            trip={t}
+            active={activeTripId === t.id}
+            onClick={() => onOpenTrip(t.id)}
+          />
+        ))}
+
+        {past.length > 0 && <SidebarHeading>Past</SidebarHeading>}
+        {past.map((t) => (
+          <SidebarTripLink
+            key={t.id}
+            trip={t}
+            active={activeTripId === t.id}
+            onClick={() => onOpenTrip(t.id)}
+          />
+        ))}
+      </nav>
+
+      {me && (
+        <div className="vt-sb-foot">
+          <Avatar name={me.name} size={28} />
+          <div className="vt-sb-foot__meta">
+            <div className="vt-sb-foot__name vt-truncate">{me.name}</div>
+            <div className="vt-sb-foot__sub vt-truncate">Synced · just now</div>
+          </div>
+          <IconButton name="user" onClick={onGoProfile} aria-label="Profile settings" />
+        </div>
+      )}
+    </aside>
+  );
+}
+
+interface SidebarLinkProps {
+  icon: string;
+  label: string;
+  active?: boolean;
+  shortcut?: string;
+  accent?: boolean;
+  onClick: () => void;
+}
+
+function SidebarLink({ icon, label, active, shortcut, accent, onClick }: SidebarLinkProps) {
+  return (
+    <a
+      role="button"
+      tabIndex={0}
+      aria-current={active ? "true" : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      style={accent && !active ? { color: "var(--vt-accent)" } : undefined}
+    >
+      <span className="vt-sb-ico" style={accent && !active ? { color: "var(--vt-accent)" } : undefined}>
+        <Icon name={icon} size={18} strokeWidth={accent ? 2 : 1.7} />
+      </span>
+      {label}
+      {shortcut && (
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 10,
+            fontFamily: "ui-monospace, monospace",
+            color: "var(--vt-label-quaternary)",
+          }}
+        >
+          {shortcut}
+        </span>
+      )}
+    </a>
+  );
+}
+
+function SidebarHeading({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        padding: "14px 12px 6px",
+        fontSize: 11,
+        color: "var(--vt-label-tertiary)",
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SidebarTripLink({
+  trip,
+  active,
+  onClick,
+}: {
+  trip: TripSummary;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <a
+      role="button"
+      tabIndex={0}
+      aria-current={active ? "true" : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+    >
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 5,
+          background: coverColor(trip.cover),
+          display: "inline-block",
+          flexShrink: 0,
+        }}
+      />
+      <span className="vt-truncate" style={{ flex: 1, minWidth: 0 }}>
+        {trip.title}
+      </span>
+    </a>
+  );
+}
+
+const COVER_SWATCH: Record<string, string> = {
+  "cover-lisbon": "oklch(60% 0.16 35)",
+  "cover-hokkaido": "oklch(60% 0.10 240)",
+  "cover-coast": "oklch(55% 0.13 220)",
+  "cover-alps": "oklch(60% 0.06 245)",
+  "cover-desert": "oklch(64% 0.14 60)",
+  "cover-cdmx": "oklch(60% 0.12 100)",
+};
+
+function coverColor(kind: string): string {
+  return COVER_SWATCH[kind] ?? "var(--vt-fill-tertiary)";
 }
 
 interface TripViewProps {
@@ -288,11 +522,7 @@ function TripView({ tripId, onBack, onOpenDay, onShare, onOpenSettings }: TripVi
   const { trip, loading, error, refresh } = useTrip(tripId);
   if (loading && !trip) return <LoadingScreen />;
   if (error || !trip) {
-    return (
-      <CenteredMessage>
-        {error ?? "Trip not found"}
-      </CenteredMessage>
-    );
+    return <CenteredMessage>{error ?? "Trip not found"}</CenteredMessage>;
   }
   if (state.status !== "authed") return null;
   return (
