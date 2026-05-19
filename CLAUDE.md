@@ -14,7 +14,7 @@ Visitrip is an open-source web app for organizing, sharing, and real-time collab
 - **DB:** PostgreSQL + Drizzle ORM (postgres-js driver)
 - **Validation:** Zod, defined once in `packages/shared`, consumed by both web and api
 - **Auth:** better-auth, email + password only (no OAuth providers at launch)
-- **Real-time:** Yjs over WebSocket — chosen but not wired yet
+- **Real-time:** Yjs over WebSocket (packing list is collaborative, awareness drives presence; other panels follow the same pattern when migrated)
 - **Container:** per-app multi-stage Dockerfile + root `docker-compose.yml`
 
 Do not swap any of these without asking.
@@ -195,6 +195,8 @@ DELETE /api/trips/:id/expenses/:expenseId
 POST   /api/trips/:id/invites                        create invite token
 GET    /api/invites/:token                           public preview
 POST   /api/invites/:token/accept                    auth; add caller as member
+
+WS     /api/realtime?trip=:id                        Yjs sync (see Real-time)
 ```
 
 Web-side fetch helpers are in `apps/web/src/lib/api.ts`; React hooks in

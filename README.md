@@ -2,7 +2,7 @@
 
 Open-source app for organizing, sharing, and real-time collaborating on trips with friends.
 
-> **Status:** early but usable end-to-end. You can sign up, create a trip, and load it back from Postgres. Most write paths beyond create-trip (day items, expenses, packing, docs, invite acceptance) and real-time editing are still to come.
+> **Status:** usable end-to-end for the core flow — sign up, create / edit / delete trips, plan days and day items, track expenses, collaborate on the packing list in real time, invite friends with a share link. The pieces still missing are infrastructure-dependent: object storage for document uploads, an email provider for the "email invite" / forgot-password flows, persistent profile preferences, and tests / CI.
 
 ## What works today
 
@@ -45,7 +45,7 @@ Open-source app for organizing, sharing, and real-time collaborating on trips wi
 ```
 visitrip/
 ├── apps/
-│   ├── api/                Hono server, /health + /api/auth/* + /api/trips
+│   ├── api/                Hono + Yjs WebSocket: /health, /api/auth/*, /api/trips, /api/invites, /api/realtime
 │   └── web/                React + Vite + Tailwind + PWA
 ├── packages/
 │   ├── shared/             Zod schemas + inferred TS types
@@ -102,7 +102,7 @@ npm run db:migrate    # apply pending migrations
 npm run db:studio     # open Drizzle Studio
 ```
 
-Tables: `user`, `session`, `account`, `verification` (better-auth) plus `trip`, `trip_member`, `day`, `day_item`, `expense`, `packing_item`, `trip_doc`.
+Tables: `user`, `session`, `account`, `verification` (better-auth) plus `trip`, `trip_member`, `trip_invite`, `day`, `day_item`, `expense`, `packing_item`, `trip_doc`, `trip_yjs_state` (binary snapshot of the per-trip collaborative document).
 
 ## Self-hosting with Docker
 
