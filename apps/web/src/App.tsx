@@ -67,9 +67,7 @@ export function App() {
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="vt-frame">
-      <div className="vt-frame__inner" data-theme="light">
-        {children}
-      </div>
+      <div className="vt-frame__inner">{children}</div>
     </div>
   );
 }
@@ -245,10 +243,13 @@ function SignedInApp({ initialTripId, onConsumedInitialTrip }: SignedInAppProps 
           {route.screen === "newtrip" && (
             <NewTripScreen
               onCancel={() => setRoute({ screen: "home" })}
-              onCreate={async (input) => {
+              onCreate={async (input, options) => {
                 const created = await api.createTrip(input);
                 setRefreshKey((k) => k + 1);
                 setRoute({ screen: "trip", tripId: created.id });
+                if (options?.openInvite) {
+                  setSheet({ kind: "invite", tripId: created.id });
+                }
                 showToast("Trip created");
               }}
             />

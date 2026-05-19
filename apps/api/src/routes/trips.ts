@@ -81,6 +81,8 @@ tripsRouter.get("/", async (c) => {
     startDate: t.startDate,
     endDate: t.endDate,
     archived: t.archived,
+    isPrivate: t.isPrivate,
+    vibes: t.vibes ?? [],
     memberCount: memberCountByTrip.get(t.id) ?? 1,
   }));
 
@@ -105,6 +107,8 @@ tripsRouter.post("/", zValidator("json", createTripSchema), async (c) => {
       currency: "USD",
       budgetTotalCents: 0,
       archived: false,
+      isPrivate: input.isPrivate ?? true,
+      vibes: input.vibes ?? [],
     });
     await tx.insert(schema.tripMember).values({
       tripId: id,
@@ -174,6 +178,8 @@ tripsRouter.get("/:id", async (c) => {
     currency: tripRow.currency,
     budgetTotalCents: tripRow.budgetTotalCents,
     archived: tripRow.archived,
+    isPrivate: tripRow.isPrivate,
+    vibes: tripRow.vibes ?? [],
     members: membership.map((m) => {
       const u = userById.get(m.userId);
       return {

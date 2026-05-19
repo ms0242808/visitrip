@@ -121,11 +121,16 @@ interface TripsScreenProps {
 export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const { trips, loading, error } = useTrips();
 
   const now = new Date();
-  const upcoming = (trips ?? []).filter((t) => !t.archived && new Date(t.endDate) >= now);
-  const past = (trips ?? []).filter((t) => t.archived || new Date(t.endDate) < now);
+  const q = query.trim().toLowerCase();
+  const matches = (t: TripSummary) =>
+    q.length === 0 || `${t.title} ${t.location}`.toLowerCase().includes(q);
+  const upcoming = (trips ?? []).filter((t) => !t.archived && new Date(t.endDate) >= now).filter(matches);
+  const past = (trips ?? []).filter((t) => t.archived || new Date(t.endDate) < now).filter(matches);
   const shown = tab === "upcoming" ? upcoming : past;
 
   return (
@@ -167,17 +172,65 @@ export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
               New
             </button>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <Segmented
-              value={tab}
-              onChange={setTab}
-              options={[
-                { value: "upcoming", label: `Upcoming · ${upcoming.length}` },
-                { value: "past", label: `Past · ${past.length}` },
-              ]}
-            />
-            <IconButton name="search" />
-          </div>
+          {searchOpen ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                borderRadius: 12,
+                background: "var(--vt-fill-tertiary)",
+              }}
+            >
+              <Icon name="search" size={16} style={{ color: "var(--vt-label-tertiary)" }} />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search trips and places"
+                style={{
+                  flex: 1,
+                  border: 0,
+                  outline: "none",
+                  background: "transparent",
+                  font: "inherit",
+                  fontSize: 15,
+                  color: "var(--vt-label)",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setQuery("");
+                }}
+                aria-label="Close search"
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  color: "var(--vt-label-tertiary)",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <Segmented
+                value={tab}
+                onChange={setTab}
+                options={[
+                  { value: "upcoming", label: `Upcoming · ${upcoming.length}` },
+                  { value: "past", label: `Past · ${past.length}` },
+                ]}
+              />
+              <IconButton name="search" aria-label="Search trips" onClick={() => setSearchOpen(true)} />
+            </div>
+          )}
         </div>
         <div className="vt-content-wide" style={{ padding: "12px 16px 120px" }}>
           {loading && (

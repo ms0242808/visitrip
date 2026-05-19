@@ -85,6 +85,8 @@ export const tripSummarySchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   archived: z.boolean(),
+  isPrivate: z.boolean(),
+  vibes: z.array(z.string()),
   memberCount: z.number().int(),
 });
 export type TripSummary = z.infer<typeof tripSummarySchema>;
@@ -101,6 +103,8 @@ export const tripDetailSchema = z.object({
   currency: z.string(),
   budgetTotalCents: z.number().int(),
   archived: z.boolean(),
+  isPrivate: z.boolean(),
+  vibes: z.array(z.string()),
   members: z.array(memberSchema),
   days: z.array(daySchema),
   expenses: z.array(expenseSchema),
@@ -116,6 +120,8 @@ export const createTripSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   summary: z.string().max(2000).optional(),
+  isPrivate: z.boolean().optional(),
+  vibes: z.array(z.string().min(1).max(24)).max(16).optional(),
 });
 export type CreateTripInput = z.infer<typeof createTripSchema>;
 
@@ -129,6 +135,8 @@ export const updateTripSchema = z.object({
   currency: z.string().length(3).optional(),
   budgetTotalCents: z.number().int().min(0).optional(),
   archived: z.boolean().optional(),
+  isPrivate: z.boolean().optional(),
+  vibes: z.array(z.string().min(1).max(24)).max(16).optional(),
 });
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 

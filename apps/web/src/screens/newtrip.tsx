@@ -82,7 +82,7 @@ function FieldCard({ icon, children, style }: { icon?: string; children: ReactNo
 
 interface NewTripScreenProps {
   onCancel: () => void;
-  onCreate: (input: CreateTripInput) => Promise<void> | void;
+  onCreate: (input: CreateTripInput, options?: { openInvite?: boolean }) => Promise<void> | void;
 }
 
 export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
@@ -111,19 +111,22 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
   const toggleVibe = (id: string) =>
     setVibes((vs) => (vs.includes(id) ? vs.filter((v) => v !== id) : [...vs, id]));
 
-  const submit = async () => {
+  const buildInput = (): CreateTripInput => ({
+    title: title.trim(),
+    location: dest.trim(),
+    cover,
+    startDate: start,
+    endDate: end,
+    isPrivate: privateTrip,
+    vibes,
+  });
+
+  const submit = async (options?: { openInvite?: boolean }) => {
     if (!ready) return;
     setSubmitting(true);
     setErrorText(null);
     try {
-      await onCreate({
-        title: title.trim(),
-        location: dest.trim(),
-        cover,
-        startDate: start,
-        endDate: end,
-        summary: vibes.length ? vibes.map((v) => VIBE_OPTIONS.find((o) => o.id === v)?.label).join(" · ") : undefined,
-      });
+      await onCreate(buildInput(), options);
     } catch (e) {
       setErrorText(e instanceof Error ? e.message : "Failed to create trip");
       setSubmitting(false);
@@ -134,7 +137,7 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
     <button
       type="button"
       disabled={!ready}
-      onClick={submit}
+      onClick={() => void submit()}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -571,6 +574,8 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
             )}
             <button
               type="button"
+              onClick={() => void submit({ openInvite: true })}
+              disabled={!ready}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -579,11 +584,12 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
                 borderRadius: 12,
                 background: "transparent",
                 border: 0,
-                cursor: "pointer",
+                cursor: ready ? "pointer" : "not-allowed",
                 font: "inherit",
                 textAlign: "left",
                 width: "100%",
-                color: "var(--vt-accent)",
+                color: ready ? "var(--vt-accent)" : "var(--vt-label-quaternary)",
+                opacity: ready ? 1 : 0.7,
               }}
             >
               <span
@@ -602,7 +608,9 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
                 <Icon name="plus" size={18} strokeWidth={2.2} />
               </span>
               <span style={{ fontSize: 14, fontWeight: 600 }}>Invite by email or link</span>
-              <span style={{ fontSize: 12, color: "var(--vt-label-tertiary)", marginLeft: 4 }}>after you create</span>
+              <span style={{ fontSize: 12, color: "var(--vt-label-tertiary)", marginLeft: 4 }}>
+                creates the trip first
+              </span>
             </button>
           </div>
 
@@ -663,7 +671,7 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
             disabled={!ready}
             loading={submitting}
             iconAfter="arrow"
-            onClick={submit}
+            onClick={() => void submit()}
           >
             {ready ? `Create ${days}-day trip` : "Create trip"}
           </Button>

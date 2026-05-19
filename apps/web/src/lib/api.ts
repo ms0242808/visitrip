@@ -68,6 +68,33 @@ export const api = {
     return request("/api/auth/sign-out", { method: "POST" });
   },
 
+  updateName(name: string): Promise<{ user: User }> {
+    return request("/api/auth/update-user", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  changePassword(currentPassword: string, newPassword: string): Promise<{ user: User }> {
+    return request("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
+  deleteAccount(password: string): Promise<{ success: boolean }> {
+    return request("/api/auth/delete-user", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+  },
+
+  async exportMyData(): Promise<Blob> {
+    const res = await fetch("/api/me/export", { credentials: "include" });
+    if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+    return res.blob();
+  },
+
   listTrips(): Promise<ListTripsResponse> {
     return request("/api/trips");
   },

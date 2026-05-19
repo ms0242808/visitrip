@@ -80,6 +80,8 @@ export const trip = pgTable("trip", {
   currency: text("currency").notNull().default("USD"),
   budgetTotalCents: integer("budget_total_cents").notNull().default(0),
   archived: boolean("archived").notNull().default(false),
+  isPrivate: boolean("is_private").notNull().default(true),
+  vibes: text("vibes").array().notNull().default(sql`'{}'::text[]`),
   createdAt: ts("created_at"),
   updatedAt: ts("updated_at"),
 });

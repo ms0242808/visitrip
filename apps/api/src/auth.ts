@@ -21,6 +21,9 @@ export const auth = betterAuth({
     autoSignIn: true,
     minPasswordLength: 8,
   },
+  user: {
+    deleteUser: { enabled: true },
+  },
   secret,
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
   trustedOrigins: [process.env.WEB_ORIGIN ?? "http://localhost:5173"],
