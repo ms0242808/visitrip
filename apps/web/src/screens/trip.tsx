@@ -42,35 +42,37 @@ export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings, r
         }
       />
       <div className="vt-scroll" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 130)}>
-        <TripCover kind={trip.cover} height={220} rounded={0}>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                opacity: 0.85,
-              }}
-            >
-              {trip.location} · {daysBetween(trip.startDate, trip.endDate) + 1} days
+        <div className="vt-content-narrow">
+          <TripCover kind={trip.cover} height={220} rounded={0}>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  opacity: 0.85,
+                }}
+              >
+                {trip.location} · {daysBetween(trip.startDate, trip.endDate) + 1} days
+              </div>
+              <div
+                style={{
+                  fontSize: 30,
+                  fontWeight: 700,
+                  letterSpacing: "-0.02em",
+                  marginTop: 4,
+                  textShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                }}
+              >
+                {trip.title}
+              </div>
+              <div style={{ fontSize: 14, marginTop: 4, opacity: 0.9 }}>{fmtRange(trip.startDate, trip.endDate)}</div>
             </div>
-            <div
-              style={{
-                fontSize: 30,
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
-                marginTop: 4,
-                textShadow: "0 1px 2px rgba(0,0,0,0.2)",
-              }}
-            >
-              {trip.title}
-            </div>
-            <div style={{ fontSize: 14, marginTop: 4, opacity: 0.9 }}>{fmtRange(trip.startDate, trip.endDate)}</div>
-          </div>
-        </TripCover>
+          </TripCover>
+        </div>
 
-        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="vt-content-narrow" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="vt-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
             <PresenceStack members={trip.members} livePeerIds={livePeerIds} />
             <div style={{ flex: 1, fontSize: 13, color: "var(--vt-label-secondary)" }}>

@@ -325,6 +325,7 @@ function Sidebar({ route, onGoHome, onGoNewTrip, onGoProfile, onOpenTrip, refres
   const { state } = useAuth();
   const { trips } = useTrips(refreshKey);
   const me = state.user;
+  const [query, setQuery] = useState("");
 
   const activeTripId = route.screen === "trip" || route.screen === "day" ? route.tripId : null;
   const isHome = route.screen === "home";
@@ -332,23 +333,41 @@ function Sidebar({ route, onGoHome, onGoNewTrip, onGoProfile, onOpenTrip, refres
   const isProfile = route.screen === "profile";
 
   const now = new Date();
-  const upcoming = (trips ?? []).filter((t) => !t.archived && new Date(t.endDate) >= now);
-  const past = (trips ?? []).filter((t) => t.archived || new Date(t.endDate) < now);
+  const all = trips ?? [];
+  const matchQuery = (t: TripSummary) =>
+    query.trim().length === 0 ||
+    `${t.title} ${t.location}`.toLowerCase().includes(query.trim().toLowerCase());
+  const upcoming = all.filter((t) => !t.archived && new Date(t.endDate) >= now).filter(matchQuery);
+  const past = all.filter((t) => t.archived || new Date(t.endDate) < now).filter(matchQuery);
 
   return (
     <aside className="vt-sidebar-root" aria-label="Sidebar">
       <div className="vt-sb-brand">
         <span className="vt-sb-brand-mark">
-          <Icon name="logo" size={16} />
+          <Icon name="logo" size={15} />
         </span>
         <span className="vt-sb-brand-name">Visitrip</span>
       </div>
 
-      <nav className="vt-sidebar" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 8 }}>
+      <label className="vt-sb-search">
+        <Icon name="search" size={14} />
+        <input
+          type="search"
+          placeholder="Search trips"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {query.length === 0 && <kbd>⌘K</kbd>}
+      </label>
+
+      <nav
+        className="vt-sidebar"
+        style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingBottom: 10 }}
+      >
         <SidebarLink
           icon="trips"
           label="All trips"
-          active={isHome || (route.screen === "trip" && !activeTripId)}
+          active={isHome}
           onClick={onGoHome}
         />
         <SidebarLink
@@ -361,7 +380,9 @@ function Sidebar({ route, onGoHome, onGoNewTrip, onGoProfile, onOpenTrip, refres
         />
         <SidebarLink icon="user" label="You" active={isProfile} onClick={onGoProfile} />
 
-        {upcoming.length > 0 && <SidebarHeading>Upcoming</SidebarHeading>}
+        {upcoming.length > 0 && (
+          <div className="vt-sb-section">Upcoming · {upcoming.length}</div>
+        )}
         {upcoming.map((t) => (
           <SidebarTripLink
             key={t.id}
@@ -371,7 +392,7 @@ function Sidebar({ route, onGoHome, onGoNewTrip, onGoProfile, onOpenTrip, refres
           />
         ))}
 
-        {past.length > 0 && <SidebarHeading>Past</SidebarHeading>}
+        {past.length > 0 && <div className="vt-sb-section">Past · {past.length}</div>}
         {past.map((t) => (
           <SidebarTripLink
             key={t.id}
@@ -440,23 +461,6 @@ function SidebarLink({ icon, label, active, shortcut, accent, onClick }: Sidebar
   );
 }
 
-function SidebarHeading({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        padding: "14px 12px 6px",
-        fontSize: 11,
-        color: "var(--vt-label-tertiary)",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 function SidebarTripLink({
   trip,
   active,
@@ -481,12 +485,13 @@ function SidebarTripLink({
     >
       <span
         style={{
-          width: 18,
-          height: 18,
+          width: 16,
+          height: 16,
           borderRadius: 5,
           background: coverColor(trip.cover),
           display: "inline-block",
           flexShrink: 0,
+          boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.08)",
         }}
       />
       <span className="vt-truncate" style={{ flex: 1, minWidth: 0 }}>

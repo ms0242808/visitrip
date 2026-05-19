@@ -15,7 +15,8 @@ body {
 
 /* ─── App shell ──────────────────────────────────────
    Mobile-first: a single full-bleed column with a bottom tab bar.
-   Desktop (≥960px): a persistent sidebar + main content layout.
+   Desktop (≥960px): a persistent sidebar + main content layout
+   styled like a native macOS/iPadOS app (Mail, Notes).
 */
 .vt-frame {
   width: 100%;
@@ -35,7 +36,6 @@ body {
   overflow: hidden;
 }
 
-/* Content area is the main scroll/screen column at every breakpoint. */
 .vt-content-root {
   flex: 1;
   min-width: 0;
@@ -46,17 +46,23 @@ body {
   overflow: hidden;
 }
 
-/* Hide desktop sidebar on mobile; hide the bottom tab bar on desktop. */
+/* Hide desktop sidebar on mobile; hide bottom tab bar on desktop. */
 .vt-sidebar-root { display: none; }
-.vt-tabbar-root  { display: block; flex-shrink: 0; }
+.vt-tabbar-root  {
+  display: block;
+  flex-shrink: 0;
+  /* Respect iOS home indicator under installed PWA. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: color-mix(in oklch, var(--vt-bg-elev) 92%, transparent);
+}
 
 @media (min-width: 960px) {
   .vt-frame__inner { flex-direction: row; }
   .vt-sidebar-root {
     display: flex;
     flex-direction: column;
-    width: 260px;
-    flex: 0 0 260px;
+    width: 268px;
+    flex: 0 0 268px;
     border-right: 0.5px solid var(--vt-separator-opaque);
     background: var(--vt-bg-grouped);
     min-height: 0;
@@ -65,7 +71,6 @@ body {
   .vt-tabbar-root { display: none; }
 }
 
-/* On wide desktops, center the main column so the warm-paper backdrop shows. */
 @media (min-width: 1400px) {
   body {
     background:
@@ -81,24 +86,67 @@ body {
   }
 }
 
-/* ─── Desktop sidebar internals (rendered by the React Sidebar) ── */
+/* ─── Apple-style sidebar internals ────────────────── */
 .vt-sb-brand {
   display: flex; align-items: center; gap: 10px;
-  padding: 16px 16px 8px;
+  padding: 14px 16px 6px;
 }
 .vt-sb-brand-mark {
-  width: 28px; height: 28px; border-radius: 8px;
+  width: 26px; height: 26px; border-radius: 7px;
   background: var(--vt-accent);
   color: var(--vt-on-accent);
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(28,24,18,0.18);
 }
 .vt-sb-brand-name {
-  font-weight: 700; letter-spacing: -0.015em; font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  font-size: 15px;
   color: var(--vt-label);
 }
+
+/* Search field mock — keeps the sidebar feeling like Mail/Notes. */
+.vt-sb-search {
+  margin: 8px 10px 4px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: var(--vt-bg-elev);
+  border: 0.5px solid var(--vt-separator-opaque);
+  color: var(--vt-label-tertiary);
+  font-size: 13px;
+  cursor: text;
+  transition: border-color var(--vt-dur-fast), box-shadow var(--vt-dur-fast);
+}
+.vt-sb-search:hover { border-color: color-mix(in oklch, var(--vt-label-tertiary) 30%, transparent); }
+.vt-sb-search input {
+  appearance: none; border: 0; outline: none; background: transparent;
+  font: inherit; font-size: 13px;
+  color: var(--vt-label);
+  flex: 1; min-width: 0; padding: 0;
+}
+.vt-sb-search input::placeholder { color: var(--vt-label-tertiary); }
+.vt-sb-search kbd {
+  font: 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--vt-label-quaternary);
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--vt-fill-quaternary);
+  border: 0.5px solid var(--vt-separator-opaque);
+}
+
+.vt-sb-section {
+  padding: 14px 14px 4px;
+  font-size: 11px;
+  color: var(--vt-label-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .vt-sb-foot {
-  padding: 10px;
+  padding: 8px 10px;
   border-top: 0.5px solid var(--vt-separator-opaque);
   display: flex; align-items: center; gap: 10px;
 }
@@ -106,9 +154,41 @@ body {
 .vt-sb-foot__name { font-size: 13px; font-weight: 600; color: var(--vt-label); }
 .vt-sb-foot__sub  { font-size: 11px; color: var(--vt-label-tertiary); }
 
-/* Constrain scroll content on very wide viewports for readability. */
+/* ─── Apple-HIG content widths on desktop ─────────────
+   Mail/Notes-style: the main pane reads at ~720-780px, centered.
+   Edge-to-edge covers still bleed full content width. */
 .vt-content-narrow {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
+}
+.vt-content-wide {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* Subtle hover-lift on desktop for cards. */
+@media (min-width: 960px) and (hover: hover) {
+  .vt-card-hover {
+    transition: transform var(--vt-dur-fast) var(--vt-ease-out),
+                box-shadow var(--vt-dur-normal) var(--vt-ease-out);
+  }
+  .vt-card-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--vt-shadow-2);
+  }
+}
+
+/* Trip grid: 1 column phone → 2 columns tablet → 3 columns wide desktop. */
+.vt-trip-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 720px) {
+  .vt-trip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+@media (min-width: 1280px) {
+  .vt-trip-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

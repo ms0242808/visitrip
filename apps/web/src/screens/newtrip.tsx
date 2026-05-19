@@ -168,10 +168,6 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
           left: 0,
           right: 0,
           zIndex: 3,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 12px",
           background: scrolled
             ? "color-mix(in oklch, var(--vt-bg-elev) 88%, transparent)"
             : "linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.06) 60%, transparent 100%)",
@@ -181,6 +177,12 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
           transition: "background 180ms, backdrop-filter 180ms, border-color 180ms",
         }}
       >
+      <div className="vt-content-narrow" style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 12px",
+      }}>
         <button
           type="button"
           onClick={onCancel}
@@ -225,8 +227,10 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
 
         {createBtn}
       </div>
+      </div>
 
       <div className="vt-scroll" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 24)}>
+        <div className="vt-content-narrow">
         {/* Immersive cover header */}
         <div style={{ position: "relative", marginBottom: 8 }}>
           <TripCover kind={cover} height={300} rounded={0}>
@@ -636,6 +640,7 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
             <div style={{ marginTop: 16, fontSize: 13, color: "var(--vt-destructive)" }}>{errorText}</div>
           )}
         </div>
+        </div>
       </div>
 
       {/* Sticky CTA */}
@@ -650,7 +655,7 @@ export function NewTripScreen({ onCancel, onCreate }: NewTripScreenProps) {
           pointerEvents: "none",
         }}
       >
-        <div style={{ pointerEvents: "auto" }}>
+        <div className="vt-content-narrow" style={{ pointerEvents: "auto" }}>
           <Button
             variant="primary"
             size="lg"

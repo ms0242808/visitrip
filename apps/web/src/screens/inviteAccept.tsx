@@ -61,7 +61,8 @@ export function InviteAcceptScreen({ token, onCancel, onJoined, onSignInRequired
   return (
     <div className="vt-screen">
       <NavBar leading={<IconButton name="close" onClick={onCancel} />} title={<Wordmark size={16} />} />
-      <div className="vt-scroll" style={{ padding: "8px 16px 100px" }}>
+      <div className="vt-scroll">
+        <div className="vt-content-narrow" style={{ padding: "8px 16px 100px" }}>
         {loading && (
           <div style={{ padding: 32, textAlign: "center", color: "var(--vt-label-tertiary)" }}>
             Loading invite…
@@ -156,6 +157,7 @@ export function InviteAcceptScreen({ token, onCancel, onJoined, onSignInRequired
             </Button>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

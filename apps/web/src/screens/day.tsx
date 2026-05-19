@@ -75,7 +75,7 @@ export function DayScreen({ trip, day, onBack, onOpenPlace, refresh }: DayScreen
         trailing={<IconButton name="plus" onClick={onAdd} />}
       />
       <div className="vt-scroll" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 36)}>
-        <div style={{ padding: "0 20px 4px" }}>
+        <div className="vt-content-narrow" style={{ padding: "0 20px 4px" }}>
           <div
             style={{
               fontSize: 11,
@@ -93,7 +93,7 @@ export function DayScreen({ trip, day, onBack, onOpenPlace, refresh }: DayScreen
           </div>
         </div>
 
-        <div style={{ padding: "20px 16px 100px" }}>
+        <div className="vt-content-narrow" style={{ padding: "20px 16px 120px" }}>
           {items.length === 0 ? (
             <EmptyDay onAdd={onAdd} />
           ) : (

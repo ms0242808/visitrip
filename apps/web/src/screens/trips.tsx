@@ -15,8 +15,12 @@ interface TripCardProps {
 function TripCard({ trip, onOpen }: TripCardProps) {
   const days = daysBetween(trip.startDate, trip.endDate) + 1;
   return (
-    <div className="vt-card" onClick={() => onOpen(trip.id)} style={{ cursor: "pointer", overflow: "hidden" }}>
-      <TripCover kind={trip.cover} height={140} rounded={0}>
+    <div
+      className="vt-card vt-card-hover"
+      onClick={() => onOpen(trip.id)}
+      style={{ cursor: "pointer", overflow: "hidden", display: "flex", flexDirection: "column" }}
+    >
+      <TripCover kind={trip.cover} height={160} rounded={0}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", height: "100%" }}>
           <div style={{ alignSelf: "flex-end" }}>
             <div
@@ -128,16 +132,16 @@ export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
     <div className="vt-screen">
       <NavBar scrolled={scrolled} leading={<Wordmark size={18} />} />
       <div className="vt-scroll" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 4)}>
-        <div style={{ padding: "4px 16px 12px" }}>
+        <div className="vt-content-wide" style={{ padding: "4px 16px 12px" }}>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "8px 0 14px",
+              padding: "12px 0 18px",
             }}
           >
-            <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}>Trips</div>
+            <div className="t-large-title">Trips</div>
             <button
               onClick={onNew}
               aria-label="New trip"
@@ -145,8 +149,8 @@ export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                height: 32,
-                padding: "0 12px 0 10px",
+                height: 34,
+                padding: "0 14px 0 12px",
                 borderRadius: 999,
                 background: "var(--vt-accent-tint)",
                 color: "var(--vt-accent)",
@@ -175,7 +179,7 @@ export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
             <IconButton name="search" />
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "8px 16px 100px" }}>
+        <div className="vt-content-wide" style={{ padding: "12px 16px 120px" }}>
           {loading && (
             <div style={{ padding: 24, textAlign: "center", color: "var(--vt-label-tertiary)" }}>
               Loading…
@@ -185,7 +189,13 @@ export function TripsScreen({ onOpen, onNew }: TripsScreenProps) {
             <div style={{ padding: 24, textAlign: "center", color: "var(--vt-destructive)" }}>{error}</div>
           )}
           {!loading && !error && shown.length === 0 && <EmptyState onNew={onNew} />}
-          {!loading && shown.map((t) => <TripCard key={t.id} trip={t} onOpen={onOpen} />)}
+          {!loading && shown.length > 0 && (
+            <div className="vt-trip-grid">
+              {shown.map((t) => (
+                <TripCard key={t.id} trip={t} onOpen={onOpen} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

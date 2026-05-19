@@ -16,7 +16,8 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
   return (
     <div className="vt-screen vt-screen-grouped">
       <NavBar leading={onBack ? <IconButton name="chevronL" onClick={onBack} /> : null} title="You" />
-      <div className="vt-scroll" style={{ padding: "16px 16px 100px" }}>
+      <div className="vt-scroll">
+        <div className="vt-content-narrow" style={{ padding: "16px 16px 120px" }}>
         <div
           className="vt-card"
           style={{
@@ -63,6 +64,7 @@ export function ProfileScreen({ onBack }: ProfileScreenProps) {
         <Button variant="ghost" block onClick={() => void signOut()} style={{ color: "var(--vt-destructive)" }}>
           Sign out
         </Button>
+        </div>
       </div>
     </div>
   );
