@@ -339,7 +339,7 @@ function DesktopTripView({
   }
 
   return (
-    <TripDocProvider tripId={tripId} user={user}>
+    <TripDocProvider key={tripId} tripId={tripId} user={user}>
       <DesktopTripBody
         detail={detail}
         user={user}

@@ -39,6 +39,10 @@ interface TripDocProviderProps {
   children: ReactNode;
 }
 
+// Each provider instance is bound to one tripId for its whole lifetime. To
+// switch trips, the parent must remount us — pass key={tripId} at the call
+// site. Without the key, switching trips would keep the original Y.Doc and
+// WebSocket bound, and packing / polls would silently leak across trips.
 export function TripDocProvider({ tripId, user, children }: TripDocProviderProps) {
   const [value] = useState<TripDocValue>(() => {
     const doc = new Y.Doc();
@@ -60,11 +64,27 @@ export function TripDocProvider({ tripId, user, children }: TripDocProviderProps
     };
   });
 
+  // Dev-mode guard: if the parent forgot the key, we'll catch it loudly here
+  // instead of silently serving stale data.
+  const boundTripIdRef = useRef(tripId);
+  if (boundTripIdRef.current !== tripId) {
+    throw new Error(
+      `TripDocProvider is bound to trip ${boundTripIdRef.current} but received ${tripId}. ` +
+        `Render it with key={tripId} so React remounts on trip change.`,
+    );
+  }
+
   useEffect(() => {
     return () => {
-      value.provider.awareness.setLocalState(null);
-      value.provider.destroy();
-      value.doc.destroy();
+      try {
+        value.provider.awareness.setLocalState(null);
+      } catch {}
+      try {
+        value.provider.destroy();
+      } catch {}
+      try {
+        value.doc.destroy();
+      } catch {}
     };
   }, [value]);
 

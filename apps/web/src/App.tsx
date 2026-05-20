@@ -332,7 +332,7 @@ export function TripView({
   }
 
   return (
-    <TripDocProvider tripId={tripId} user={user}>
+    <TripDocProvider key={tripId} tripId={tripId} user={user}>
       <TripContent
         detail={detail}
         user={user}
