@@ -10,6 +10,7 @@ import { runMigrations } from "@visitrip/db";
 import { auth } from "./auth";
 import { attachRealtime } from "./realtime/server";
 import { flushAll } from "./realtime/docs";
+import { activityRouter } from "./routes/activity";
 import { invitesRouter } from "./routes/invites";
 import { meRouter } from "./routes/me";
 import { tripsRouter } from "./routes/trips";
@@ -37,6 +38,7 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/trips", tripsRouter);
 app.route("/api/invites", invitesRouter);
 app.route("/api/me", meRouter);
+app.route("/api/activity", activityRouter);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

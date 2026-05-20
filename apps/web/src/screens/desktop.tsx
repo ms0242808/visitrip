@@ -17,7 +17,8 @@ import { Polls } from "./polls";
 import { MapView } from "./map";
 import { Expenses } from "./expenses";
 import { Documents } from "./documents";
-import { ActivityScreen } from "./activity";
+import { ActivityRow, ActivityScreen } from "./activity";
+import { useActivity } from "../lib/activity";
 import { YouScreen } from "./you";
 import { InviteModal, NewTripModal, type NewTripValues } from "./modals";
 
@@ -278,7 +279,9 @@ export function DesktopShell({ user, initialTripId, onConsumedInitialTrip }: Des
                 onNewTrip={() => setShowNewTrip(true)}
               />
             )}
-            {!tripId && rootView === "activity" && <DesktopActivityWrap />}
+            {!tripId && rootView === "activity" && (
+              <DesktopActivityWrap user={user} onOpenTrip={openTrip} />
+            )}
             {!tripId && rootView === "you" && <YouScreen user={user} />}
 
             {tripId && (
@@ -797,7 +800,7 @@ function DesktopTripCard({
   );
 }
 
-function DesktopActivityWrap() {
+function DesktopActivityWrap({ user, onOpenTrip }: { user: User; onOpenTrip: (id: string) => void }) {
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 18 }}>
       <div>
@@ -808,7 +811,7 @@ function DesktopActivityWrap() {
           Everything happening across your trips
         </div>
       </div>
-      <ActivityScreen />
+      <ActivityScreen user={user} onOpenTrip={onOpenTrip} />
     </div>
   );
 }
@@ -1018,9 +1021,9 @@ function DesktopOverview({
             className="card"
             style={{ padding: 18, borderRadius: 20, scrollMarginTop: 16 }}
           >
-            <DBlockHeader title="Polls" sub="(Mocked — no backend yet)" />
+            <DBlockHeader title="Polls" sub="Live across the group" />
             <div style={{ marginTop: 12 }}>
-              <Polls embed />
+              <Polls embed directory={directory} />
             </div>
           </div>
         </div>
@@ -1061,11 +1064,11 @@ function DesktopOverview({
             <DBlockHeader
               title="Activity"
               sub={
-                others[0] ? <Typing user={others[0]} /> : "Nothing happening right now"
+                others[0] ? <Typing user={others[0]} /> : "Latest in this trip"
               }
             />
-            <div style={{ marginTop: 10, fontSize: 13, color: "var(--c-ink-3)" }}>
-              Per-trip activity feed isn't wired up yet — see the global Activity tab.
+            <div style={{ marginTop: 10 }}>
+              <DesktopTripActivity tripId={detail.id} meId={directory.me.id} />
             </div>
           </div>
         </div>
@@ -1182,6 +1185,27 @@ function JumpCard({
       </div>
       <Icon name="chev_r" size={16} style={{ color: "var(--c-ink-3)", flexShrink: 0 }} />
     </button>
+  );
+}
+
+function DesktopTripActivity({ tripId, meId }: { tripId: string; meId: string }) {
+  const { events, loading } = useActivity({ tripId, limit: 6 });
+  if (loading && !events) {
+    return <div style={{ fontSize: 13, color: "var(--c-ink-3)" }}>Loading…</div>;
+  }
+  if (!events || events.length === 0) {
+    return (
+      <div style={{ fontSize: 13, color: "var(--c-ink-3)" }}>
+        Nothing yet. Add an expense or invite a friend to get started.
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "grid", gap: 0 }}>
+      {events.map((e, i) => (
+        <ActivityRow key={e.id} event={e} meId={meId} separator={i > 0} showTrip={false} />
+      ))}
+    </div>
   );
 }
 

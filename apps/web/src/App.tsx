@@ -229,7 +229,7 @@ function PhoneShell({
           onNewTrip={() => setShowNewTrip(true)}
         />
       );
-    if (rootTab === "activity") screen = <ActivityScreen />;
+    if (rootTab === "activity") screen = <ActivityScreen user={user} onOpenTrip={openTrip} />;
     if (rootTab === "you") screen = <YouScreen user={user} />;
   } else {
     screen = (

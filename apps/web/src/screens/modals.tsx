@@ -474,6 +474,131 @@ interface AddItineraryProps {
   dayLabel: string;
 }
 
+interface NewPollDraft {
+  q: string;
+  options: string[];
+}
+
+interface NewPollModalProps {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (draft: NewPollDraft) => void;
+}
+
+export function NewPollModal({ open, onClose, onCreate }: NewPollModalProps) {
+  const [q, setQ] = useState("");
+  const [options, setOptions] = useState<string[]>(["", ""]);
+
+  useEffect(() => {
+    if (open) {
+      setQ("");
+      setOptions(["", ""]);
+    }
+  }, [open]);
+
+  const valid = q.trim().length > 0 && options.filter((o) => o.trim()).length >= 2;
+
+  const setOption = (i: number, v: string) => {
+    setOptions((prev) => {
+      const next = [...prev];
+      next[i] = v;
+      return next;
+    });
+  };
+  const addOption = () => setOptions((prev) => [...prev, ""]);
+  const removeOption = (i: number) => {
+    if (options.length <= 2) return;
+    setOptions((prev) => prev.filter((_, idx) => idx !== i));
+  };
+  const submit = () => {
+    if (!valid) return;
+    onCreate({ q: q.trim(), options: options.map((o) => o.trim()).filter(Boolean) });
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="New poll" height="82%">
+      <div className="sec-title" style={{ marginBottom: 8 }}>
+        Question
+      </div>
+      <input
+        className="input"
+        autoFocus
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Where should we stay?"
+      />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginTop: 18,
+          marginBottom: 8,
+        }}
+      >
+        <div className="sec-title">Options</div>
+        <span style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
+          {options.filter((o) => o.trim()).length} of {options.length}
+        </span>
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        {options.map((opt, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              className="input"
+              value={opt}
+              onChange={(e) => setOption(i, e.target.value)}
+              placeholder={`Option ${i + 1}`}
+              style={{ flex: 1 }}
+            />
+            {options.length > 2 && (
+              <button
+                onClick={() => removeOption(i)}
+                style={{ padding: 8, color: "var(--c-ink-3)" }}
+                title="Remove option"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          onClick={addOption}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 12,
+            border: "1px dashed var(--c-ink-4)",
+            color: "var(--c-ink-2)",
+            fontSize: 13,
+            fontWeight: 500,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <Icon name="plus" size={14} /> Add another option
+        </button>
+      </div>
+
+      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+        <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          className="btn-pri"
+          style={{ flex: 2, opacity: valid ? 1 : 0.5 }}
+          disabled={!valid}
+          onClick={submit}
+        >
+          <Icon name="sparkle" size={16} /> Start poll
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
 export function AddItineraryModal({ open, onClose, onAdd, dayLabel }: AddItineraryProps) {
   const [time, setTime] = useState("12:00");
   const [title, setTitle] = useState("");

@@ -21,6 +21,7 @@ interface TripDocValue {
   doc: Y.Doc;
   provider: WebsocketProvider;
   packing: Y.Array<Y.Map<unknown>>;
+  polls: Y.Array<Y.Map<unknown>>;
 }
 
 const TripDocContext = createContext<TripDocValue | null>(null);
@@ -55,6 +56,7 @@ export function TripDocProvider({ tripId, user, children }: TripDocProviderProps
       doc,
       provider,
       packing: doc.getArray<Y.Map<unknown>>("packing"),
+      polls: doc.getArray<Y.Map<unknown>>("polls"),
     };
   });
 

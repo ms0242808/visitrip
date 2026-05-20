@@ -6,6 +6,7 @@ import type {
   CreateTripInput,
   InviteCreateResponse,
   InvitePreview,
+  ListActivityResponse,
   ListTripsResponse,
   TripDetail,
   UpdateDayInput,
@@ -187,5 +188,13 @@ export const api = {
 
   acceptInvite(token: string): Promise<{ tripId: string }> {
     return request(`/api/invites/${token}/accept`, { method: "POST" });
+  },
+
+  listActivity(opts?: { tripId?: string; limit?: number }): Promise<ListActivityResponse> {
+    const params = new URLSearchParams();
+    if (opts?.tripId) params.set("tripId", opts.tripId);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request(`/api/activity${qs ? `?${qs}` : ""}`);
   },
 };

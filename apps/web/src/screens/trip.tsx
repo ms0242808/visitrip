@@ -12,8 +12,10 @@ import {
 import { Itinerary } from "./itinerary";
 import { Checklist } from "./checklist";
 import { Polls } from "./polls";
+import { ActivityRow } from "./activity";
 import type { MemberDirectory } from "../lib/adapters";
 import type { Trip as ViewTrip } from "../lib/data";
+import { useActivity } from "../lib/activity";
 
 export type PlanSub = "overview" | "itinerary" | "checklist" | "polls";
 export type TripQuickAction = "map" | "expenses" | "docs" | "invite";
@@ -288,7 +290,7 @@ export function TripOverview({
           />
         )}
         {tab === "checklist" && <Checklist embed directory={directory} />}
-        {tab === "polls" && <Polls embed />}
+        {tab === "polls" && <Polls embed directory={directory} />}
       </div>
     </div>
   );
@@ -425,11 +427,16 @@ function OverviewBody({ detail, directory, onSubScreen }: OverviewBodyProps) {
             marginBottom: 8,
           }}
         >
-          <div className="sec-title">Crew</div>
+          <div className="sec-title">Live activity</div>
           {directory.byId.size > 1 && (
             <Typing user={[...directory.byId.values()].find((m) => m.id !== directory.me.id) ?? directory.me} />
           )}
         </div>
+        <TripActivityCard tripId={detail.id} meId={directory.me.id} />
+      </div>
+
+      <div style={{ padding: "0 20px 14px" }}>
+        <div className="sec-title" style={{ marginBottom: 8 }}>Crew</div>
         <div className="card" style={{ borderRadius: 18, padding: "4px 0" }}>
           {detail.members.map((m, i) => {
             const u = directory.resolve(m.id);
@@ -461,9 +468,7 @@ function OverviewBody({ detail, directory, onSubScreen }: OverviewBodyProps) {
       </div>
 
       <div style={{ padding: "0 20px 18px" }}>
-        <div className="sec-title" style={{ marginBottom: 8 }}>
-          Up next
-        </div>
+        <div className="sec-title" style={{ marginBottom: 8 }}>Up next</div>
         {upcomingItem ? (
           <div
             className="card"
@@ -516,6 +521,37 @@ function OverviewBody({ detail, directory, onSubScreen }: OverviewBodyProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function TripActivityCard({ tripId, meId }: { tripId: string; meId: string }) {
+  const { events, loading } = useActivity({ tripId, limit: 6 });
+  if (loading && !events) {
+    return (
+      <div
+        className="card"
+        style={{ padding: 14, borderRadius: 18, color: "var(--c-ink-3)", fontSize: 13 }}
+      >
+        Loading…
+      </div>
+    );
+  }
+  if (!events || events.length === 0) {
+    return (
+      <div
+        className="card"
+        style={{ padding: 14, borderRadius: 18, color: "var(--c-ink-3)", fontSize: 13 }}
+      >
+        Nothing yet. Add an expense or invite a friend to get started.
+      </div>
+    );
+  }
+  return (
+    <div className="card" style={{ borderRadius: 18, padding: "4px 0", overflow: "hidden" }}>
+      {events.map((e, i) => (
+        <ActivityRow key={e.id} event={e} meId={meId} separator={i > 0} showTrip={false} />
+      ))}
     </div>
   );
 }
