@@ -300,10 +300,15 @@ a { color: inherit; text-decoration: none; }
 .input::placeholder { color: var(--c-ink-3); }
 
 /* Cover image fallback gradients */
-.cover-paris   { background: linear-gradient(140deg,#FFD3B6 0%,#F4845F 50%,#C75748 100%); }
-.cover-kyoto   { background: linear-gradient(140deg,#FFE8D6 0%,#E3B7A0 50%,#7C5C4E 100%); }
-.cover-iceland { background: linear-gradient(140deg,#D8E3FF 0%,#8FA6F5 50%,#2D3A7C 100%); }
-.cover-lisbon  { background: linear-gradient(140deg,#FFE8D6 0%,#F4845F 40%,#3B5BDB 100%); }
+.cover-paris    { background: linear-gradient(140deg,#FFD3B6 0%,#F4845F 50%,#C75748 100%); }
+.cover-kyoto    { background: linear-gradient(140deg,#FFE8D6 0%,#E3B7A0 50%,#7C5C4E 100%); }
+.cover-iceland  { background: linear-gradient(140deg,#D8E3FF 0%,#8FA6F5 50%,#2D3A7C 100%); }
+.cover-lisbon   { background: linear-gradient(140deg,#FFE8D6 0%,#F4845F 40%,#3B5BDB 100%); }
+.cover-hokkaido { background: linear-gradient(140deg,#F1F6FF 0%,#9CB7E2 45%,#385783 100%); }
+.cover-cdmx     { background: linear-gradient(140deg,#FFE3C8 0%,#F58E5E 45%,#9C3A36 100%); }
+.cover-coast    { background: linear-gradient(140deg,#D8F0F4 0%,#76B7C3 50%,#1F4D63 100%); }
+.cover-alps     { background: linear-gradient(140deg,#EDF1F5 0%,#B2C3D9 45%,#445B7C 100%); }
+.cover-desert   { background: linear-gradient(140deg,#FFE9C2 0%,#E0A45F 45%,#7E4A23 100%); }
 
 /* ── Desktop layout ───────────────────────────────────── */
 .desktop {

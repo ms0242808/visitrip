@@ -1,31 +1,76 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import * as Y from "yjs";
 import { Icon } from "../components/Icon";
 import { Avatar } from "../components/Avatar";
 import { Checkbox, ScreenHeader } from "../components/ui";
-import { CHECKLIST, memberById, type ChecklistSection } from "../lib/data";
+import { useTripDoc, useYArray } from "../lib/yjs";
+import { yPackingToChecklist, type MemberDirectory, type YPackingShape } from "../lib/adapters";
 
 interface ChecklistProps {
   embed?: boolean;
   onBack?: () => void;
+  directory: MemberDirectory;
 }
 
-export function Checklist({ embed, onBack }: ChecklistProps) {
-  const [sections, setSections] = useState<ChecklistSection[]>(CHECKLIST);
-  const total = sections.reduce((n, s) => n + s.items.length, 0);
-  const done = sections.reduce((n, s) => n + s.items.filter((i) => i.done).length, 0);
+function readMap(m: Y.Map<unknown>): YPackingShape | null {
+  const id = m.get("id");
+  const label = m.get("label");
+  const category = m.get("category");
+  if (typeof id !== "string" || typeof label !== "string" || typeof category !== "string") {
+    return null;
+  }
+  return {
+    id,
+    label,
+    category,
+    done: Boolean(m.get("done")),
+    position: typeof m.get("position") === "number" ? (m.get("position") as number) : 0,
+  };
+}
+
+export function Checklist({ embed, onBack, directory }: ChecklistProps) {
+  const { doc, packing } = useTripDoc();
+  const rows = useYArray(packing);
+  const meId = directory.me.id;
+
+  const items = useMemo(() => {
+    return rows.map((m) => readMap(m)).filter((x): x is YPackingShape => !!x);
+  }, [rows]);
+
+  const sections = useMemo(() => yPackingToChecklist(items), [items]);
+  const total = items.length;
+  const done = items.filter((i) => i.done).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
-  const toggle = (sid: string, iid: string) => {
-    setSections((prev) =>
-      prev.map((s) =>
-        s.id !== sid
-          ? s
-          : {
-              ...s,
-              items: s.items.map((it) => (it.id !== iid ? it : { ...it, done: !it.done })),
-            },
-      ),
-    );
+  const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+
+  const toggle = (id: string) => {
+    doc.transact(() => {
+      const idx = rows.findIndex((m) => m.get("id") === id);
+      if (idx === -1) return;
+      const m = rows[idx]!;
+      m.set("done", !m.get("done"));
+    });
+  };
+
+  const addItem = (category: string) => {
+    if (!newLabel.trim()) {
+      setPendingAdd(null);
+      return;
+    }
+    doc.transact(() => {
+      const m = new Y.Map<unknown>();
+      m.set("id", `pk_${Math.random().toString(36).slice(2, 10)}`);
+      m.set("category", category);
+      m.set("label", newLabel.trim());
+      m.set("done", false);
+      m.set("position", rows.length);
+      m.set("createdBy", meId);
+      packing.push([m]);
+    });
+    setNewLabel("");
+    setPendingAdd(null);
   };
 
   return (
@@ -34,7 +79,7 @@ export function Checklist({ embed, onBack }: ChecklistProps) {
         <ScreenHeader
           title="Checklist"
           onBack={onBack}
-          subtitle="Packing & pre-trip — shared with everyone"
+          subtitle="Packing & pre-trip — synced live"
         />
       )}
 
@@ -109,87 +154,154 @@ export function Checklist({ embed, onBack }: ChecklistProps) {
         </div>
       </div>
 
-      <div style={{ padding: "0 20px 20px", display: "grid", gap: 14 }}>
-        {sections.map((sec) => (
-          <div key={sec.id}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-                padding: "0 4px 6px",
+      {sections.length === 0 ? (
+        <div style={{ padding: "0 20px 20px" }}>
+          <div
+            className="card"
+            style={{
+              padding: 16,
+              borderRadius: 18,
+              fontSize: 13,
+              color: "var(--c-ink-3)",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <div>Nothing on the list yet.</div>
+            <input
+              className="input"
+              autoFocus
+              placeholder="Add first item — e.g. Passports"
+              value={pendingAdd === "_first" ? newLabel : ""}
+              onFocus={() => setPendingAdd("_first")}
+              onChange={(e) => {
+                setPendingAdd("_first");
+                setNewLabel(e.target.value);
               }}
-            >
-              <div className="sec-title">{sec.section}</div>
-              <span style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
-                {sec.items.filter((i) => i.done).length}/{sec.items.length}
-              </span>
-            </div>
-            <div className="card" style={{ borderRadius: 16, overflow: "hidden" }}>
-              {sec.items.map((it, i) => {
-                const u = memberById(it.assigned);
-                return (
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  addItem("Documents");
+                }
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "0 20px 20px", display: "grid", gap: 14 }}>
+          {sections.map((sec) => (
+            <div key={sec.id}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  padding: "0 4px 6px",
+                }}
+              >
+                <div className="sec-title">{sec.section}</div>
+                <span style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
+                  {sec.items.filter((i) => i.done).length}/{sec.items.length}
+                </span>
+              </div>
+              <div className="card" style={{ borderRadius: 16, overflow: "hidden" }}>
+                {sec.items.map((it, i) => {
+                  const u = it.assigned ? directory.resolve(it.assigned) : null;
+                  return (
+                    <button
+                      key={it.id}
+                      onClick={() => toggle(it.id)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "13px 14px",
+                        borderTop: i === 0 ? "0" : "0.5px solid var(--c-hair)",
+                      }}
+                    >
+                      <Checkbox checked={it.done} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            letterSpacing: -0.1,
+                            color: it.done ? "var(--c-ink-3)" : "var(--c-ink)",
+                            textDecoration: it.done ? "line-through" : "none",
+                            textDecorationColor: "var(--c-ink-4)",
+                          }}
+                        >
+                          {it.text}
+                        </div>
+                      </div>
+                      {u && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            fontSize: 11,
+                            color: "var(--c-ink-3)",
+                          }}
+                        >
+                          <Avatar user={u} size={18} />
+                          <span>{u.name.split(" ")[0]}</span>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {pendingAdd === sec.id ? (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderTop: "0.5px solid var(--c-hair)",
+                      display: "flex",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      className="input"
+                      autoFocus
+                      placeholder="Add item"
+                      value={newLabel}
+                      onChange={(e) => setNewLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addItem(sec.section);
+                        if (e.key === "Escape") setPendingAdd(null);
+                      }}
+                      onBlur={() => {
+                        if (newLabel.trim()) addItem(sec.section);
+                        else setPendingAdd(null);
+                      }}
+                    />
+                  </div>
+                ) : (
                   <button
-                    key={it.id}
-                    onClick={() => toggle(sec.id, it.id)}
+                    onClick={() => {
+                      setPendingAdd(sec.id);
+                      setNewLabel("");
+                    }}
                     style={{
                       width: "100%",
+                      padding: "11px 14px",
                       textAlign: "left",
                       display: "flex",
                       alignItems: "center",
-                      gap: 12,
-                      padding: "13px 14px",
-                      borderTop: i === 0 ? "0" : "0.5px solid var(--c-hair)",
+                      gap: 10,
+                      borderTop: "0.5px solid var(--c-hair)",
+                      color: "var(--c-ink-3)",
+                      fontSize: 14,
                     }}
                   >
-                    <Checkbox checked={it.done} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 15,
-                          letterSpacing: -0.1,
-                          color: it.done ? "var(--c-ink-3)" : "var(--c-ink)",
-                          textDecoration: it.done ? "line-through" : "none",
-                          textDecorationColor: "var(--c-ink-4)",
-                        }}
-                      >
-                        {it.text}
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 11,
-                        color: "var(--c-ink-3)",
-                      }}
-                    >
-                      <Avatar user={u} size={18} />
-                      <span>{u.name.split(" ")[0]}</span>
-                    </span>
+                    <Icon name="plus" size={16} /> Add item
                   </button>
-                );
-              })}
-              <button
-                style={{
-                  width: "100%",
-                  padding: "11px 14px",
-                  textAlign: "left",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  borderTop: "0.5px solid var(--c-hair)",
-                  color: "var(--c-ink-3)",
-                  fontSize: 14,
-                }}
-              >
-                <Icon name="plus" size={16} /> Add item
-              </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

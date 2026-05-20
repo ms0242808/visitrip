@@ -3,7 +3,28 @@
 // have backend equivalents yet. Trips list / detail will be swapped to the
 // real API once the schemas converge.
 
-export type CoverVariant = "cover-lisbon" | "cover-paris" | "cover-kyoto" | "cover-iceland";
+export type CoverVariant =
+  | "cover-lisbon"
+  | "cover-paris"
+  | "cover-kyoto"
+  | "cover-iceland"
+  | "cover-hokkaido"
+  | "cover-cdmx"
+  | "cover-coast"
+  | "cover-alps"
+  | "cover-desert";
+
+export const ALL_COVERS: CoverVariant[] = [
+  "cover-lisbon",
+  "cover-paris",
+  "cover-kyoto",
+  "cover-iceland",
+  "cover-hokkaido",
+  "cover-cdmx",
+  "cover-coast",
+  "cover-alps",
+  "cover-desert",
+];
 
 export interface Member {
   id: string;

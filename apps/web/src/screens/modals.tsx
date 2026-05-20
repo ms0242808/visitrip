@@ -1,27 +1,79 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type {
+  CoverKind,
+  CreateDayItemInput,
+  CreateExpenseInput,
+  CreateTripInput,
+  DayItemKind,
+} from "@visitrip/shared";
 import { Icon, type IconName } from "../components/Icon";
-import { Avatar } from "../components/Avatar";
-import { Checkbox, Sheet } from "../components/ui";
-import { catIcon } from "./expenses";
-import { MEMBERS, memberById, type CoverVariant, type Expense, type ItineraryItem } from "../lib/data";
+import { Sheet } from "../components/ui";
+import { ALL_COVERS, type CoverVariant } from "../lib/data";
+import { backendKind, defaultIconFor } from "../lib/adapters";
+import { api } from "../lib/api";
 
-const COVERS: CoverVariant[] = ["cover-lisbon", "cover-paris", "cover-kyoto", "cover-iceland"];
+const COVER_PREVIEW: CoverVariant[] = ALL_COVERS;
+function coverKindFromClass(c: CoverVariant): CoverKind {
+  return c.replace(/^cover-/, "") as CoverKind;
+}
+
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const addDaysIso = (iso: string, n: number) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+  dt.setDate(dt.getDate() + n);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+};
+
+export type NewTripValues = CreateTripInput;
 
 interface NewTripModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate?: (input: { name: string; cover: CoverVariant; dates: string; members: string[] }) => void;
+  onCreate: (input: NewTripValues) => Promise<void>;
 }
 
 export function NewTripModal({ open, onClose, onCreate }: NewTripModalProps) {
-  const [name, setName] = useState("Tokyo neon weekend");
-  const [cover, setCover] = useState<CoverVariant>("cover-kyoto");
-  const [dates] = useState("Sep 4 – Sep 8");
-  const [invite, setInvite] = useState<string[]>(["u2", "u3"]);
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
+  const [cover, setCover] = useState<CoverVariant>("cover-lisbon");
+  const [startDate, setStartDate] = useState(addDaysIso(todayIso(), 14));
+  const [endDate, setEndDate] = useState(addDaysIso(todayIso(), 18));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = () => {
-    onCreate?.({ name, cover, dates, members: ["u1", ...invite] });
-    onClose();
+  // Reset when reopened
+  useEffect(() => {
+    if (open) {
+      setError(null);
+      setBusy(false);
+    }
+  }, [open]);
+
+  const valid = title.trim().length > 0 && location.trim().length > 0 && startDate <= endDate;
+
+  const submit = async () => {
+    if (!valid || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onCreate({
+        title: title.trim(),
+        location: location.trim(),
+        cover: coverKindFromClass(cover),
+        startDate,
+        endDate,
+      });
+      setTitle("");
+      setLocation("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not create trip");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -39,7 +91,7 @@ export function NewTripModal({ open, onClose, onCreate }: NewTripModalProps) {
             paddingBottom: 4,
           }}
         >
-          {COVERS.map((c) => (
+          {COVER_PREVIEW.map((c) => (
             <button
               key={c}
               onClick={() => setCover(c)}
@@ -64,9 +116,21 @@ export function NewTripModal({ open, onClose, onCreate }: NewTripModalProps) {
         </div>
         <input
           className="input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           placeholder="Where are we going?"
+        />
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <div className="sec-title" style={{ marginBottom: 8 }}>
+          Location
+        </div>
+        <input
+          className="input"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="Lisbon, Portugal"
         />
       </div>
 
@@ -74,78 +138,84 @@ export function NewTripModal({ open, onClose, onCreate }: NewTripModalProps) {
         <div className="sec-title" style={{ marginBottom: 8 }}>
           Dates
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <input
             className="input"
-            style={{
-              textAlign: "left",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <Icon name="calendar" size={16} /> {dates}
-          </button>
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+          <input
+            className="input"
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </div>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <div className="sec-title" style={{ marginBottom: 8 }}>
-          Invite friends
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          {MEMBERS.filter((m) => m.id !== "u1").map((m) => {
-            const on = invite.includes(m.id);
-            return (
-              <button
-                key={m.id}
-                onClick={() =>
-                  setInvite((prev) => (on ? prev.filter((i) => i !== m.id) : [...prev, m.id]))
-                }
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "var(--c-surface)",
-                  border: "0.5px solid var(--c-hair)",
-                  width: "100%",
-                  textAlign: "left",
-                }}
-              >
-                <Avatar user={m} size={28} showOnline />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 600 }}>{m.name}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
-                    {m.online ? "online now" : "offline"}
-                  </div>
-                </div>
-                <Checkbox checked={on} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {error && (
+        <div style={{ marginTop: 14, fontSize: 13, color: "var(--c-accent)" }}>{error}</div>
+      )}
 
       <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
         <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>
           Cancel
         </button>
-        <button className="btn-pri" style={{ flex: 2 }} onClick={submit}>
-          <Icon name="sparkle" size={16} /> Create trip
+        <button
+          className="btn-pri"
+          style={{ flex: 2, opacity: valid && !busy ? 1 : 0.5 }}
+          onClick={submit}
+          disabled={!valid || busy}
+        >
+          <Icon name="sparkle" size={16} /> {busy ? "Creating…" : "Create trip"}
         </button>
       </div>
     </Sheet>
   );
 }
 
-export function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+interface InviteModalProps {
+  open: boolean;
+  onClose: () => void;
+  tripId: string | null;
+}
+
+export function InviteModal({ open, onClose, tripId }: InviteModalProps) {
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const link = "trip.app/j/lisbon-mn3k7";
-  const copy = () => {
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !tripId) return;
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    api
+      .createInvite(tripId, {})
+      .then((res) => alive && setToken(res.token))
+      .catch((e) => alive && setError(e instanceof Error ? e.message : "Could not create invite"))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [open, tripId]);
+
+  const link = token
+    ? `${typeof window === "undefined" ? "" : window.location.origin}/invite/${token}`
+    : "—";
+
+  const copy = async () => {
+    if (!token) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
@@ -175,7 +245,9 @@ export function InviteModal({ open, onClose }: { open: boolean; onClose: () => v
           <Icon name="share" size={20} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12.5, color: "var(--c-ink-3)" }}>Share link · expires in 7d</div>
+          <div style={{ fontSize: 12.5, color: "var(--c-ink-3)" }}>
+            {loading ? "Generating link…" : error ? "Error" : "Share link"}
+          </div>
           <div
             style={{
               fontSize: 14,
@@ -185,51 +257,17 @@ export function InviteModal({ open, onClose }: { open: boolean; onClose: () => v
               whiteSpace: "nowrap",
             }}
           >
-            {link}
+            {error ?? link}
           </div>
         </div>
         <button
           className="btn-ghost"
           onClick={copy}
-          style={{ background: copied ? "var(--c-tint)" : undefined }}
+          disabled={!token}
+          style={{ background: copied ? "var(--c-tint)" : undefined, opacity: token ? 1 : 0.5 }}
         >
           {copied ? "Copied" : "Copy"}
         </button>
-      </div>
-
-      <div className="sec-title" style={{ marginTop: 18, marginBottom: 8 }}>
-        Or invite from contacts
-      </div>
-      <div style={{ display: "grid", gap: 6 }}>
-        {[
-          ...MEMBERS.filter((m) => !["u1", "u2", "u3", "u5"].includes(m.id)),
-          { id: "x1", name: "Aja Chen", initials: "AC", hue: 200, online: false },
-          { id: "x2", name: "Niko M.", initials: "NM", hue: 60, online: true },
-        ].map((m) => (
-          <div
-            key={m.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 12px",
-              borderRadius: 12,
-              background: "var(--c-surface)",
-              border: "0.5px solid var(--c-hair)",
-            }}
-          >
-            <Avatar user={m} size={28} showOnline />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 600 }}>{m.name}</div>
-              <div style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
-                {m.online ? "online now" : "offline"}
-              </div>
-            </div>
-            <button className="btn-ghost" style={{ padding: "7px 12px", fontSize: 13 }}>
-              Invite
-            </button>
-          </div>
-        ))}
       </div>
 
       <div
@@ -242,7 +280,8 @@ export function InviteModal({ open, onClose }: { open: boolean; onClose: () => v
           color: "var(--c-ink-2)",
         }}
       >
-        Anyone with this link can view &amp; suggest edits. You&apos;ll approve changes from non-members.
+        Anyone with this link can join as an editor. They'll see your itinerary, polls,
+        expenses, and the shared checklist in real time.
       </div>
     </Sheet>
   );
@@ -251,33 +290,54 @@ export function InviteModal({ open, onClose }: { open: boolean; onClose: () => v
 interface AddExpenseModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (exp: Omit<Expense, "id">) => void;
+  onAdd: (exp: CreateExpenseInput) => Promise<void>;
   members: string[];
+  currency: string;
+  meId: string;
 }
 
-const CATS: Expense["category"][] = ["food", "stay", "transit", "sight", "show", "flight"];
-
-export function AddExpenseModal({ open, onClose, onAdd, members }: AddExpenseModalProps) {
+export function AddExpenseModal({
+  open,
+  onClose,
+  onAdd,
+  members,
+  currency,
+  meId,
+}: AddExpenseModalProps) {
   const [amount, setAmount] = useState("");
   const [label, setLabel] = useState("");
-  const [paidBy, setPaidBy] = useState("u1");
-  const [split, setSplit] = useState<string[]>(members);
-  const [cat, setCat] = useState<Expense["category"]>("food");
+  const [paidBy, setPaidBy] = useState(meId);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = () => {
+  useEffect(() => {
+    if (open) {
+      setAmount("");
+      setLabel("");
+      setPaidBy(meId);
+      setBusy(false);
+      setError(null);
+    }
+  }, [open, meId]);
+
+  const submit = async () => {
     const a = parseFloat(amount) || 0;
-    if (!a || !label) return;
-    onAdd({
-      label,
-      amount: a,
-      currency: "€",
-      paidBy,
-      split,
-      date: "today",
-      category: cat,
-    });
-    setAmount("");
-    setLabel("");
+    if (!a || !label.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onAdd({
+        date: new Date().toISOString().slice(0, 10),
+        label: label.trim(),
+        amountCents: Math.round(a * 100),
+        currency,
+        paidById: paidBy,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add expense");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -293,7 +353,8 @@ export function AddExpenseModal({ open, onClose, onAdd, members }: AddExpenseMod
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          €{amount || "0"}
+          {currency}
+          {amount || "0"}
         </div>
         <Keypad
           onPress={(k) => {
@@ -313,44 +374,10 @@ export function AddExpenseModal({ open, onClose, onAdd, members }: AddExpenseMod
 
       <div style={{ marginTop: 14 }}>
         <div className="sec-title" style={{ marginBottom: 8 }}>
-          Category
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {CATS.map((c) => {
-            const on = cat === c;
-            return (
-              <button
-                key={c}
-                onClick={() => setCat(c)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  background: on ? "var(--c-ink)" : "var(--c-surface)",
-                  color: on ? "var(--c-bg)" : "var(--c-ink)",
-                  border: on ? 0 : "0.5px solid var(--c-hair)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  textTransform: "capitalize",
-                }}
-              >
-                <Icon name={catIcon(c)} size={14} />
-                {c}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 14 }}>
-        <div className="sec-title" style={{ marginBottom: 8 }}>
           Paid by
         </div>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none" }}>
           {members.map((id) => {
-            const m = memberById(id);
             const on = paidBy === id;
             return (
               <button
@@ -358,79 +385,37 @@ export function AddExpenseModal({ open, onClose, onAdd, members }: AddExpenseMod
                 onClick={() => setPaidBy(id)}
                 style={{
                   flexShrink: 0,
-                  padding: "6px 12px 6px 6px",
+                  padding: "6px 12px",
                   borderRadius: 999,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
                   background: on ? "var(--c-ink)" : "var(--c-surface)",
                   color: on ? "var(--c-bg)" : "var(--c-ink)",
                   border: on ? 0 : "0.5px solid var(--c-hair)",
+                  fontSize: 13,
+                  fontWeight: 500,
                 }}
               >
-                <Avatar user={m} size={22} />
-                <span style={{ fontSize: 13, fontWeight: 500 }}>
-                  {m.id === "u1" ? "You" : m.name}
-                </span>
+                {id === meId ? "You" : id.slice(0, 6)}
               </button>
             );
           })}
         </div>
       </div>
 
-      <div style={{ marginTop: 14 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            marginBottom: 8,
-          }}
-        >
-          <div className="sec-title">Split between</div>
-          <span style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
-            {split.length > 0 && amount && `€${(parseFloat(amount) / split.length).toFixed(2)} each`}
-          </span>
-        </div>
-        <div style={{ display: "grid", gap: 6 }}>
-          {members.map((id) => {
-            const m = memberById(id);
-            const on = split.includes(id);
-            return (
-              <button
-                key={id}
-                onClick={() =>
-                  setSplit((prev) => (on ? prev.filter((i) => i !== id) : [...prev, id]))
-                }
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "9px 12px",
-                  borderRadius: 12,
-                  background: "var(--c-surface)",
-                  border: "0.5px solid var(--c-hair)",
-                  width: "100%",
-                  textAlign: "left",
-                }}
-              >
-                <Avatar user={m} size={24} />
-                <div style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>
-                  {m.id === "u1" ? "You" : m.name}
-                </div>
-                <Checkbox checked={on} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {error && (
+        <div style={{ marginTop: 14, fontSize: 13, color: "var(--c-accent)" }}>{error}</div>
+      )}
 
       <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
         <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>
           Cancel
         </button>
-        <button className="btn-acc" style={{ flex: 2 }} onClick={submit}>
-          Add expense
+        <button
+          className="btn-acc"
+          style={{ flex: 2 }}
+          onClick={submit}
+          disabled={busy || !label.trim() || !parseFloat(amount || "0")}
+        >
+          {busy ? "Adding…" : "Add expense"}
         </button>
       </div>
     </Sheet>
@@ -473,7 +458,7 @@ function Keypad({ onPress }: { onPress: (k: string) => void }) {
   );
 }
 
-const KINDS: { id: ItineraryItem["kind"]; icon: IconName }[] = [
+const KIND_OPTIONS: { id: "food" | "sight" | "stay" | "transit" | "show" | "flight"; icon: IconName }[] = [
   { id: "food", icon: "fork" },
   { id: "sight", icon: "star" },
   { id: "stay", icon: "bed" },
@@ -485,25 +470,51 @@ const KINDS: { id: ItineraryItem["kind"]; icon: IconName }[] = [
 interface AddItineraryProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (item: Omit<ItineraryItem, "id">) => void;
-  day: number;
+  onAdd: (item: CreateDayItemInput) => Promise<void>;
+  dayLabel: string;
 }
 
-export function AddItineraryModal({ open, onClose, onAdd, day }: AddItineraryProps) {
+export function AddItineraryModal({ open, onClose, onAdd, dayLabel }: AddItineraryProps) {
   const [time, setTime] = useState("12:00");
   const [title, setTitle] = useState("");
-  const [loc, setLoc] = useState("Lisbon");
-  const [kind, setKind] = useState<ItineraryItem["kind"]>("food");
+  const [sub, setSub] = useState("");
+  const [kind, setKind] = useState<(typeof KIND_OPTIONS)[number]["id"]>("food");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = () => {
-    if (!title) return;
-    const icon = KINDS.find((k) => k.id === kind)?.icon ?? "pin";
-    onAdd({ time, title, loc, kind, who: "u1", icon });
-    setTitle("");
+  useEffect(() => {
+    if (open) {
+      setTitle("");
+      setSub("");
+      setError(null);
+      setBusy(false);
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (!title.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const dbKind: DayItemKind = backendKind(kind);
+      await onAdd({
+        type: dbKind,
+        time,
+        title: title.trim(),
+        sub: sub.trim() || undefined,
+        icon: defaultIconFor(kind),
+        anchor: false,
+        tag: null,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add item");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title={`Add to day ${day}`} height="72%">
+    <Sheet open={open} onClose={onClose} title={`Add to ${dayLabel}`} height="72%">
       <input
         className="input"
         autoFocus
@@ -522,9 +533,9 @@ export function AddItineraryModal({ open, onClose, onAdd, day }: AddItineraryPro
         />
         <input
           className="input"
-          value={loc}
-          onChange={(e) => setLoc(e.target.value)}
-          placeholder="Where?"
+          value={sub}
+          onChange={(e) => setSub(e.target.value)}
+          placeholder="Where? (optional)"
         />
       </div>
 
@@ -532,7 +543,7 @@ export function AddItineraryModal({ open, onClose, onAdd, day }: AddItineraryPro
         Type
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {KINDS.map((k) => {
+        {KIND_OPTIONS.map((k) => {
           const on = kind === k.id;
           return (
             <button
@@ -558,12 +569,21 @@ export function AddItineraryModal({ open, onClose, onAdd, day }: AddItineraryPro
         })}
       </div>
 
+      {error && (
+        <div style={{ marginTop: 14, fontSize: 13, color: "var(--c-accent)" }}>{error}</div>
+      )}
+
       <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
         <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>
           Cancel
         </button>
-        <button className="btn-acc" style={{ flex: 2 }} onClick={submit}>
-          Add to day {day}
+        <button
+          className="btn-acc"
+          style={{ flex: 2 }}
+          onClick={submit}
+          disabled={busy || !title.trim()}
+        >
+          {busy ? "Adding…" : `Add to ${dayLabel}`}
         </button>
       </div>
     </Sheet>

@@ -1,10 +1,32 @@
+import { useState } from "react";
+import type { User } from "@visitrip/shared";
 import { Icon, type IconName } from "../components/Icon";
 import { Avatar } from "../components/Avatar";
-import { MEMBERS, TRIPS, memberById } from "../lib/data";
+import { hueFor, initialsFor } from "../lib/adapters";
+import { useAuth } from "../lib/auth";
 
-export function YouScreen() {
-  const me = memberById("u1");
-  const planningCount = TRIPS.filter((t) => t.status !== "past").length;
+interface YouScreenProps {
+  user: User;
+}
+
+export function YouScreen({ user }: YouScreenProps) {
+  const { signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const me = {
+    id: user.id,
+    name: user.name || user.email,
+    initials: initialsFor(user.name || user.email),
+    hue: hueFor(user.id),
+    online: true,
+  };
+  const doSignOut = async () => {
+    setBusy(true);
+    try {
+      await signOut();
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className="screen-enter" style={{ paddingBottom: 110 }}>
       <div
@@ -33,23 +55,10 @@ export function YouScreen() {
                 letterSpacing: "-0.02em",
               }}
             >
-              You
+              {me.name}
             </div>
-            <div style={{ fontSize: 13, color: "var(--c-ink-3)", marginTop: 6 }}>you@trip.app</div>
+            <div style={{ fontSize: 13, color: "var(--c-ink-3)", marginTop: 6 }}>{user.email}</div>
           </div>
-        </div>
-      </div>
-
-      <div style={{ padding: "0 20px 16px" }}>
-        <div
-          className="card"
-          style={{ padding: 14, borderRadius: 16, display: "flex", justifyContent: "space-around" }}
-        >
-          <YouStat label="Trips" value={planningCount} />
-          <YouSep />
-          <YouStat label="Countries" value="7" />
-          <YouSep />
-          <YouStat label="Friends" value={MEMBERS.length - 1} />
         </div>
       </div>
 
@@ -57,15 +66,15 @@ export function YouScreen() {
         <YouGroup
           title="Account"
           rows={[
-            { icon: "user_plus", label: "Invite friends", sub: "3 pending", acc: "var(--c-link)" },
+            { icon: "user_plus", label: "Invite friends", sub: "Share any trip's link", acc: "var(--c-link)" },
             { icon: "bell", label: "Notifications", sub: "On", acc: "var(--c-ink)" },
-            { icon: "wifi", label: "Offline downloads", sub: "2 trips · 84 MB", acc: "var(--c-ink)" },
+            { icon: "wifi", label: "Offline downloads", sub: "Sync on open", acc: "var(--c-ink)" },
           ]}
         />
         <YouGroup
           title="Preferences"
           rows={[
-            { icon: "settings", label: "Appearance", sub: "Light · Coral accent", acc: "var(--c-ink)" },
+            { icon: "settings", label: "Appearance", sub: "Light", acc: "var(--c-ink)" },
             { icon: "cash", label: "Default currency", sub: "EUR · €", acc: "var(--c-ink)" },
             { icon: "calendar", label: "Week starts on", sub: "Monday", acc: "var(--c-ink)" },
           ]}
@@ -73,47 +82,23 @@ export function YouScreen() {
         <YouGroup
           title="Help"
           rows={[
-            { icon: "sparkle", label: "What's new", sub: "v2.4 · Live cursors", acc: "var(--c-accent)" },
+            { icon: "sparkle", label: "What's new", sub: "Live cursors · sub-tabs · new design", acc: "var(--c-accent)" },
             { icon: "doc", label: "Help & support", sub: null, acc: "var(--c-ink)" },
             { icon: "heart", label: "Rate Trip", sub: null, acc: "var(--c-accent)" },
           ]}
         />
+
+        <button
+          onClick={doSignOut}
+          disabled={busy}
+          className="btn-ghost"
+          style={{ width: "100%", padding: "12px", color: "var(--c-accent)", opacity: busy ? 0.6 : 1 }}
+        >
+          {busy ? "Signing out…" : "Sign out"}
+        </button>
       </div>
     </div>
   );
-}
-
-function YouStat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div style={{ flex: 1, textAlign: "center" }}>
-      <div
-        style={{
-          fontSize: 22,
-          fontWeight: 700,
-          fontVariantNumeric: "tabular-nums",
-          letterSpacing: "-0.02em",
-        }}
-      >
-        {value}
-      </div>
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--c-ink-3)",
-          marginTop: 2,
-          fontWeight: 600,
-          letterSpacing: 0.06,
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function YouSep() {
-  return <div style={{ width: 0.5, background: "var(--c-hair)", alignSelf: "stretch" }} />;
 }
 
 interface YouRow {

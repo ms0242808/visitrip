@@ -1,20 +1,37 @@
+import type { TripSummary, User } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
-import { Avatar, AvatarStack } from "../components/Avatar";
+import { Avatar } from "../components/Avatar";
 import { Cover } from "../components/ui";
-import { ACTIVITY, TRIPS, memberById, type Trip } from "../lib/data";
+import { adaptTripSummary, hueFor, initialsFor } from "../lib/adapters";
+
+interface UseTripsResult {
+  trips: TripSummary[] | null;
+  loading: boolean;
+  error: string | null;
+}
 
 interface TripsHomeProps {
+  tripsResult: UseTripsResult;
+  user: User;
   onOpenTrip: (id: string) => void;
   onNewTrip: () => void;
 }
 
-export function TripsHome({ onOpenTrip, onNewTrip }: TripsHomeProps) {
-  const upcoming = TRIPS.filter((t) => t.status === "planning").sort((a, b) => a.daysAway - b.daysAway);
+export function TripsHome({ tripsResult, user, onOpenTrip, onNewTrip }: TripsHomeProps) {
+  const { trips, loading, error } = tripsResult;
+  const me = {
+    id: user.id,
+    name: user.name || user.email,
+    initials: initialsFor(user.name || user.email),
+    hue: hueFor(user.id),
+    online: true,
+  };
+
+  const adapted = (trips ?? []).map(adaptTripSummary);
+  const upcoming = adapted.filter((t) => t.status === "planning").sort((a, b) => a.daysAway - b.daysAway);
   const next = upcoming[0];
   const rest = upcoming.slice(1);
-  const past = TRIPS.filter((t) => t.status === "past");
-  const youUser = memberById("u1");
-  const headlineActivity = ACTIVITY[0];
+  const past = adapted.filter((t) => t.status === "past");
 
   return (
     <div className="screen-enter" style={{ paddingBottom: 100 }}>
@@ -26,25 +43,16 @@ export function TripsHome({ onOpenTrip, onNewTrip }: TripsHomeProps) {
           alignItems: "center",
         }}
       >
-        <Avatar user={youUser} size={36} showOnline />
+        <Avatar user={me} size={36} showOnline />
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn-ghost" style={{ padding: "8px 10px", borderRadius: 999 }}>
             <Icon name="search" size={20} />
           </button>
-          <button className="btn-ghost" style={{ padding: "8px 10px", borderRadius: 999, position: "relative" }}>
+          <button
+            className="btn-ghost"
+            style={{ padding: "8px 10px", borderRadius: 999, position: "relative" }}
+          >
             <Icon name="bell" size={20} />
-            <span
-              style={{
-                position: "absolute",
-                top: 7,
-                right: 8,
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "var(--c-accent)",
-                border: "1.5px solid var(--c-bg)",
-              }}
-            />
           </button>
         </div>
       </div>
@@ -52,18 +60,63 @@ export function TripsHome({ onOpenTrip, onNewTrip }: TripsHomeProps) {
       <div style={{ padding: "6px 20px 14px" }}>
         <h1 className="large-title">Your trips</h1>
         <div style={{ color: "var(--c-ink-3)", fontSize: 14, marginTop: 6, lineHeight: 1.4 }}>
-          <span style={{ color: "var(--c-ink-2)" }}>
-            {upcoming.length} in planning
-          </span>{" "}
-          · {past.length} past
+          {loading && trips === null ? (
+            "Loading…"
+          ) : error ? (
+            <span style={{ color: "var(--c-accent)" }}>{error}</span>
+          ) : (
+            <>
+              <span style={{ color: "var(--c-ink-2)" }}>
+                {upcoming.length} in planning
+              </span>{" "}
+              · {past.length} past
+            </>
+          )}
         </div>
       </div>
+
+      {!loading && !error && adapted.length === 0 && (
+        <div style={{ padding: "8px 20px 18px" }}>
+          <div
+            className="card"
+            style={{
+              padding: 20,
+              borderRadius: 18,
+              textAlign: "center",
+              background: "var(--c-tint)",
+              border: 0,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--sf-display)",
+                fontSize: 22,
+                letterSpacing: "-0.02em",
+                marginBottom: 6,
+              }}
+            >
+              Plan your first trip
+            </div>
+            <div style={{ fontSize: 13, color: "var(--c-ink-2)", marginBottom: 14 }}>
+              A shared place for places, days, and money.
+            </div>
+            <button className="btn-pri" onClick={onNewTrip}>
+              <Icon name="plus" size={16} /> New trip
+            </button>
+          </div>
+        </div>
+      )}
 
       {next && (
         <div style={{ padding: "0 20px 18px" }}>
           <button
             onClick={() => onOpenTrip(next.id)}
-            style={{ width: "100%", textAlign: "left", display: "block", borderRadius: "var(--card-radius)" }}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              display: "block",
+              borderRadius: "var(--card-radius)",
+            }}
           >
             <Cover
               variant={next.cover}
@@ -107,9 +160,13 @@ export function TripsHome({ onOpenTrip, onNewTrip }: TripsHomeProps) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Next trip · in {next.daysAway} days
+                  {next.daysAway > 0
+                    ? `Next trip · in ${next.daysAway} days`
+                    : next.daysAway === 0
+                    ? "Today"
+                    : `${Math.abs(next.daysAway)} days ago`}
                 </div>
-                <AvatarStack ids={next.members} size={26} />
+                <MemberCountBadge n={next.memberCount} />
               </div>
               <div style={{ position: "relative" }}>
                 <div
@@ -140,47 +197,27 @@ export function TripsHome({ onOpenTrip, onNewTrip }: TripsHomeProps) {
                     <Icon name="calendar" size={14} /> {next.dates}
                   </span>
                   <span style={{ display: "inline-flex", gap: 5, alignItems: "center", whiteSpace: "nowrap" }}>
-                    <Icon name="pin" size={14} /> {next.places} places
+                    <Icon name="list" size={14} /> {next.days} days
                   </span>
                 </div>
               </div>
             </Cover>
           </button>
-
-          <div
-            className="card"
-            style={{
-              marginTop: 10,
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: "var(--c-tint)",
-              border: 0,
-            }}
-          >
-            <Avatar user={memberById(headlineActivity.who)} size={22} />
-            <div style={{ flex: 1, fontSize: 13, color: "var(--c-ink-2)" }}>
-              <b style={{ color: "var(--c-ink)", fontWeight: 600 }}>
-                {memberById(headlineActivity.who).name}
-              </b>{" "}
-              {headlineActivity.text}
-            </div>
-            <span style={{ fontSize: 11, color: "var(--c-ink-3)" }}>{headlineActivity.at}</span>
-          </div>
         </div>
       )}
 
-      <div style={{ padding: "0 20px" }}>
-        <div className="sec-title" style={{ marginBottom: 10 }}>
-          Also in planning
+      {rest.length > 0 && (
+        <div style={{ padding: "0 20px" }}>
+          <div className="sec-title" style={{ marginBottom: 10 }}>
+            Also in planning
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {rest.map((t) => (
+              <TripRow key={t.id} trip={t} onOpen={() => onOpenTrip(t.id)} />
+            ))}
+          </div>
         </div>
-        <div style={{ display: "grid", gap: 10 }}>
-          {rest.map((t) => (
-            <TripRow key={t.id} trip={t} onOpen={() => onOpenTrip(t.id)} />
-          ))}
-        </div>
-      </div>
+      )}
 
       <div style={{ padding: "18px 20px 6px" }}>
         <button className="btn-pri" style={{ width: "100%" }} onClick={onNewTrip}>
@@ -188,21 +225,25 @@ export function TripsHome({ onOpenTrip, onNewTrip }: TripsHomeProps) {
         </button>
       </div>
 
-      <div style={{ padding: "14px 20px" }}>
-        <div className="sec-title" style={{ marginBottom: 10 }}>
-          Past trips
+      {past.length > 0 && (
+        <div style={{ padding: "14px 20px" }}>
+          <div className="sec-title" style={{ marginBottom: 10 }}>
+            Past trips
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {past.map((t) => (
+              <TripRow key={t.id} trip={t} onOpen={() => onOpenTrip(t.id)} muted />
+            ))}
+          </div>
         </div>
-        <div style={{ display: "grid", gap: 10 }}>
-          {past.map((t) => (
-            <TripRow key={t.id} trip={t} onOpen={() => onOpenTrip(t.id)} muted />
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function TripRow({ trip, onOpen, muted }: { trip: Trip; onOpen: () => void; muted?: boolean }) {
+type SummaryVM = ReturnType<typeof adaptTripSummary>;
+
+function TripRow({ trip, onOpen, muted }: { trip: SummaryVM; onOpen: () => void; muted?: boolean }) {
   return (
     <button
       onClick={onOpen}
@@ -239,13 +280,35 @@ function TripRow({ trip, onOpen, muted }: { trip: Trip; onOpen: () => void; mute
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-        <AvatarStack ids={trip.members} size={20} max={3} />
+        <MemberCountBadge n={trip.memberCount} compact />
         {muted ? null : (
           <span style={{ fontSize: 10.5, color: "var(--c-ink-3)" }}>
-            {trip.daysAway > 0 ? `in ${trip.daysAway}d` : "past"}
+            {trip.daysAway > 0 ? `in ${trip.daysAway}d` : trip.daysAway === 0 ? "today" : "past"}
           </span>
         )}
       </div>
     </button>
+  );
+}
+
+function MemberCountBadge({ n, compact }: { n: number; compact?: boolean }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: compact ? 10.5 : 11,
+        fontWeight: 600,
+        color: compact ? "var(--c-ink-3)" : "#fff",
+        background: compact ? "transparent" : "rgba(255,255,255,.22)",
+        backdropFilter: compact ? undefined : "blur(8px)",
+        padding: compact ? 0 : "4px 8px",
+        borderRadius: 999,
+      }}
+    >
+      <Icon name="user_plus" size={compact ? 11 : 13} />
+      {n} {n === 1 ? "traveler" : "travelers"}
+    </span>
   );
 }

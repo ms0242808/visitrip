@@ -1,24 +1,29 @@
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import type { TripDetail, User } from "@visitrip/shared";
 import { Icon, type IconName } from "../components/Icon";
 import { Avatar, AvatarStack } from "../components/Avatar";
 import {
-  Checkbox,
-  DesktopDialog,
   PresenceCursor,
   Typing,
   useDriftingCursors,
 } from "../components/ui";
-import { ACTIVITY, CHECKLIST, MEMBERS, TRIPS, memberById, type Trip } from "../lib/data";
+import { adaptTripDetail, adaptTripSummary, buildDirectory, hueFor, initialsFor, type MemberDirectory } from "../lib/adapters";
+import { api } from "../lib/api";
+import { useTrip, useTrips } from "../lib/trips";
+import { TripDocProvider } from "../lib/yjs";
 import { Itinerary } from "./itinerary";
+import { Checklist } from "./checklist";
 import { Polls } from "./polls";
 import { MapView } from "./map";
 import { Expenses } from "./expenses";
 import { Documents } from "./documents";
 import { ActivityScreen } from "./activity";
 import { YouScreen } from "./you";
+import { InviteModal, NewTripModal, type NewTripValues } from "./modals";
 
 type DesktopRoot = "trips" | "activity" | "you";
 type DesktopSectionId = "plan" | "map" | "money" | "documents";
+type PlanSub = "overview" | "itinerary" | "checklist" | "polls";
 
 const TRIP_SECTIONS: { id: DesktopSectionId; label: string; icon: IconName }[] = [
   { id: "plan", label: "Plan", icon: "list" },
@@ -27,24 +32,53 @@ const TRIP_SECTIONS: { id: DesktopSectionId; label: string; icon: IconName }[] =
   { id: "documents", label: "Documents", icon: "doc" },
 ];
 
-export function DesktopShell() {
-  const [tripId, setTripId] = useState<string | null>(null);
+interface DesktopShellProps {
+  user: User;
+  initialTripId?: string | null;
+  onConsumedInitialTrip?: () => void;
+}
+
+export function DesktopShell({ user, initialTripId, onConsumedInitialTrip }: DesktopShellProps) {
+  const [tripId, setTripId] = useState<string | null>(initialTripId ?? null);
   const [section, setSection] = useState<DesktopSectionId>("plan");
+  const [planSub, setPlanSub] = useState<PlanSub>("overview");
   const [rootView, setRootView] = useState<DesktopRoot>("trips");
   const [showNewTrip, setShowNewTrip] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const tripsResult = useTrips(refreshKey);
 
-  const trip = tripId ? TRIPS.find((t) => t.id === tripId) ?? null : null;
-  const cursors = useDriftingCursors(
-    MEMBERS.filter((m) => m.online && m.id !== "u1"),
-    [tripId],
-  );
+  useEffect(() => {
+    if (initialTripId) {
+      setTripId(initialTripId);
+      setSection("plan");
+      setPlanSub("overview");
+      onConsumedInitialTrip?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTripId]);
 
-  const openTrip = (id: string) => {
+  const openTrip = useCallback((id: string) => {
     setTripId(id);
     setSection("plan");
-  };
-  const exitTrip = () => setTripId(null);
+    setPlanSub("overview");
+  }, []);
+  const exitTrip = useCallback(() => setTripId(null), []);
+
+  const onCreateTrip = useCallback(async (values: NewTripValues) => {
+    const { id } = await api.createTrip(values);
+    setRefreshKey((k) => k + 1);
+    setShowNewTrip(false);
+    setTripId(id);
+    setSection("plan");
+    setPlanSub("overview");
+  }, []);
+
+  const adaptedSummaries = (tripsResult.trips ?? []).map(adaptTripSummary);
+  const planning = adaptedSummaries.filter((t) => t.status === "planning").sort(
+    (a, b) => a.daysAway - b.daysAway,
+  );
+  const past = adaptedSummaries.filter((t) => t.status === "past");
 
   return (
     <div className="desktop">
@@ -56,7 +90,7 @@ export function DesktopShell() {
         <div className="scroll-pane">
           <div style={{ display: "grid", gap: 2, marginTop: 4 }}>
             <button
-              className={`dsk-side-row ${!trip && rootView === "trips" ? "active" : ""}`}
+              className={`dsk-side-row ${!tripId && rootView === "trips" ? "active" : ""}`}
               onClick={() => {
                 exitTrip();
                 setRootView("trips");
@@ -64,12 +98,10 @@ export function DesktopShell() {
             >
               <Icon name="home" size={16} style={{ width: 22 }} />
               <span style={{ flex: 1 }}>All trips</span>
-              <span style={{ fontSize: 11, color: "var(--c-ink-3)" }}>
-                {TRIPS.filter((t) => t.status !== "past").length}
-              </span>
+              <span style={{ fontSize: 11, color: "var(--c-ink-3)" }}>{planning.length}</span>
             </button>
             <button
-              className={`dsk-side-row ${!trip && rootView === "activity" ? "active" : ""}`}
+              className={`dsk-side-row ${!tripId && rootView === "activity" ? "active" : ""}`}
               onClick={() => {
                 exitTrip();
                 setRootView("activity");
@@ -77,10 +109,9 @@ export function DesktopShell() {
             >
               <Icon name="bell" size={16} style={{ width: 22 }} />
               <span style={{ flex: 1 }}>Activity</span>
-              <span className="dot" />
             </button>
             <button
-              className={`dsk-side-row ${!trip && rootView === "you" ? "active" : ""}`}
+              className={`dsk-side-row ${!tripId && rootView === "you" ? "active" : ""}`}
               onClick={() => {
                 exitTrip();
                 setRootView("you");
@@ -93,7 +124,7 @@ export function DesktopShell() {
 
           <div className="dsk-side-label">Trips</div>
           <div style={{ display: "grid", gap: 2 }}>
-            {TRIPS.filter((tt) => tt.status !== "past").map((tt) => {
+            {planning.map((tt) => {
               const isOpen = tripId === tt.id;
               return (
                 <Fragment key={tt.id}>
@@ -178,11 +209,11 @@ export function DesktopShell() {
             </button>
           </div>
 
-          {TRIPS.some((tt) => tt.status === "past") && (
+          {past.length > 0 && (
             <>
               <div className="dsk-side-label">Past</div>
               <div style={{ display: "grid", gap: 2 }}>
-                {TRIPS.filter((tt) => tt.status === "past").map((tt) => (
+                {past.map((tt) => (
                   <button
                     key={tt.id}
                     className={`dsk-side-row ${tripId === tt.id ? "active" : ""}`}
@@ -215,11 +246,21 @@ export function DesktopShell() {
               setRootView("you");
             }}
           >
-            <Avatar user={memberById("u1")} size={26} showOnline />
+            <Avatar
+              user={{
+                id: user.id,
+                name: user.name || user.email,
+                initials: initialsFor(user.name || user.email),
+                hue: hueFor(user.id),
+                online: true,
+              }}
+              size={26}
+              showOnline
+            />
             <div style={{ flex: 1, lineHeight: 1.2, textAlign: "left" }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>You</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{user.name || "You"}</div>
               <div style={{ fontSize: 11, color: "var(--c-ink-3)", fontWeight: 500 }}>
-                you@trip.app
+                {user.email}
               </div>
             </div>
             <Icon name="chev_r" size={14} style={{ color: "var(--c-ink-3)" }} />
@@ -228,57 +269,184 @@ export function DesktopShell() {
       </aside>
 
       <main className="dsk-main">
-        {trip && (
-          <DesktopTripTopBar trip={trip} onExit={exitTrip} onInvite={() => setShowInvite(true)} />
-        )}
-
         <div className="dsk-content">
           <div className="dsk-wrap">
-            {!trip && rootView === "trips" && (
-              <DesktopAllTrips onOpenTrip={openTrip} onNewTrip={() => setShowNewTrip(true)} />
+            {!tripId && rootView === "trips" && (
+              <DesktopAllTrips
+                tripsResult={tripsResult}
+                onOpenTrip={openTrip}
+                onNewTrip={() => setShowNewTrip(true)}
+              />
             )}
-            {!trip && rootView === "activity" && <DesktopActivity />}
-            {!trip && rootView === "you" && <YouScreen />}
+            {!tripId && rootView === "activity" && <DesktopActivityWrap />}
+            {!tripId && rootView === "you" && <YouScreen user={user} />}
 
-            {trip && section === "plan" && (
-              <DesktopOverview trip={trip} cursors={cursors} onGoToSection={setSection} />
-            )}
-            {trip && section === "map" && (
-              <DesktopSection title="Map">
-                <div style={{ height: "calc(100vh - 180px)", minHeight: 520 }}>
-                  <MapView />
-                </div>
-              </DesktopSection>
-            )}
-            {trip && section === "money" && (
-              <DesktopSection title="Money">
-                <Expenses />
-              </DesktopSection>
-            )}
-            {trip && section === "documents" && (
-              <DesktopSection title="Documents">
-                <Documents />
-              </DesktopSection>
+            {tripId && (
+              <DesktopTripView
+                tripId={tripId}
+                user={user}
+                section={section}
+                setSection={setSection}
+                planSub={planSub}
+                setPlanSub={setPlanSub}
+                onExit={exitTrip}
+                onInvite={() => setShowInvite(true)}
+              />
             )}
           </div>
         </div>
 
-        <NewTripModalDesktop open={showNewTrip} onClose={() => setShowNewTrip(false)} />
-        <InviteModalDesktop open={showInvite} onClose={() => setShowInvite(false)} />
+        <NewTripModal open={showNewTrip} onClose={() => setShowNewTrip(false)} onCreate={onCreateTrip} />
+        <InviteModal open={showInvite} onClose={() => setShowInvite(false)} tripId={tripId} />
       </main>
     </div>
   );
 }
 
-function DesktopTripTopBar({
-  trip,
-  onExit,
-  onInvite,
-}: {
-  trip: Trip;
+interface DesktopTripViewProps {
+  tripId: string;
+  user: User;
+  section: DesktopSectionId;
+  setSection: (s: DesktopSectionId) => void;
+  planSub: PlanSub;
+  setPlanSub: (s: PlanSub) => void;
   onExit: () => void;
   onInvite: () => void;
-}) {
+}
+
+function DesktopTripView({
+  tripId,
+  user,
+  section,
+  setSection,
+  planSub,
+  setPlanSub,
+  onExit,
+  onInvite,
+}: DesktopTripViewProps) {
+  const { trip: detail, loading, refresh } = useTrip(tripId);
+
+  if (loading && !detail) {
+    return (
+      <div style={{ padding: 40, color: "var(--c-ink-3)" }}>Loading…</div>
+    );
+  }
+  if (!detail) {
+    return <div style={{ padding: 40, color: "var(--c-ink-3)" }}>Trip not found.</div>;
+  }
+
+  return (
+    <TripDocProvider tripId={tripId} user={user}>
+      <DesktopTripBody
+        detail={detail}
+        user={user}
+        section={section}
+        setSection={setSection}
+        planSub={planSub}
+        setPlanSub={setPlanSub}
+        onExit={onExit}
+        onInvite={onInvite}
+        refresh={refresh}
+      />
+    </TripDocProvider>
+  );
+}
+
+interface DesktopTripBodyProps {
+  detail: TripDetail;
+  user: User;
+  section: DesktopSectionId;
+  setSection: (s: DesktopSectionId) => void;
+  planSub: PlanSub;
+  setPlanSub: (s: PlanSub) => void;
+  onExit: () => void;
+  onInvite: () => void;
+  refresh: () => Promise<void>;
+}
+
+function DesktopTripBody({
+  detail,
+  user,
+  section,
+  setSection,
+  planSub,
+  setPlanSub,
+  onExit,
+  onInvite,
+  refresh,
+}: DesktopTripBodyProps) {
+  const directory = buildDirectory(detail.members, user);
+  const trip = adaptTripDetail(detail);
+  const others = [...directory.byId.values()].filter((m) => m.id !== directory.me.id);
+  const cursors = useDriftingCursors(others, [detail.id]);
+
+  return (
+    <>
+      <DesktopTripTopBar
+        title={detail.title}
+        cover={trip.cover}
+        dates={trip.dates}
+        daysAway={trip.daysAway}
+        memberCount={detail.members.length}
+        directory={directory}
+        onExit={onExit}
+        onInvite={onInvite}
+      />
+      {section === "plan" && (
+        <DesktopOverview
+          detail={detail}
+          trip={trip}
+          directory={directory}
+          cursors={cursors}
+          onGoToSection={setSection}
+          planSub={planSub}
+          setPlanSub={setPlanSub}
+          refresh={refresh}
+        />
+      )}
+      {section === "map" && (
+        <DesktopSection title="Map">
+          <div style={{ height: "calc(100vh - 180px)", minHeight: 520 }}>
+            <MapView />
+          </div>
+        </DesktopSection>
+      )}
+      {section === "money" && (
+        <DesktopSection title="Money">
+          <Expenses detail={detail} directory={directory} refresh={refresh} />
+        </DesktopSection>
+      )}
+      {section === "documents" && (
+        <DesktopSection title="Documents">
+          <Documents detail={detail} directory={directory} />
+        </DesktopSection>
+      )}
+    </>
+  );
+}
+
+interface DesktopTripTopBarProps {
+  title: string;
+  cover: string;
+  dates: string;
+  daysAway: number;
+  memberCount: number;
+  directory: MemberDirectory;
+  onExit: () => void;
+  onInvite: () => void;
+}
+
+function DesktopTripTopBar({
+  title,
+  cover,
+  dates,
+  daysAway,
+  memberCount,
+  directory,
+  onExit,
+  onInvite,
+}: DesktopTripTopBarProps) {
+  const onlineCount = [...directory.byId.values()].filter((m) => m.online).length;
   return (
     <div className="dsk-topbar">
       <div
@@ -306,7 +474,7 @@ function DesktopTripTopBar({
         </button>
         <span style={{ width: 0.5, height: 18, background: "var(--c-hair)" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <span className={trip.cover} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0 }} />
+          <span className={cover} style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0 }} />
           <div
             style={{
               fontFamily: "var(--sf-display)",
@@ -320,7 +488,7 @@ function DesktopTripTopBar({
               maxWidth: 360,
             }}
           >
-            {trip.name}
+            {title}
           </div>
         </div>
         <div
@@ -334,18 +502,17 @@ function DesktopTripTopBar({
           }}
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <Icon name="calendar" size={14} /> {trip.dates}
+            <Icon name="calendar" size={14} /> {dates}
           </span>
-          {trip.daysAway > 0 && <span>· in {trip.daysAway}d</span>}
+          {daysAway > 0 && <span>· in {daysAway}d</span>}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <AvatarStack ids={trip.members} size={24} max={5} />
-          <span
-            style={{ fontSize: 11.5, color: "var(--c-ink-3)", whiteSpace: "nowrap" }}
-          >
-            {trip.members.filter((id) => memberById(id).online).length} online
+          <AvatarStack ids={directory.ids} size={24} max={5} />
+          <span style={{ fontSize: 11.5, color: "var(--c-ink-3)", whiteSpace: "nowrap" }}>
+            {memberCount} {memberCount === 1 ? "traveler" : "travelers"}
+            {onlineCount > 0 ? ` · ${onlineCount} online` : ""}
           </span>
         </div>
         <button
@@ -361,50 +528,79 @@ function DesktopTripTopBar({
         >
           <Icon name="user_plus" size={14} /> Invite
         </button>
-        <button
-          className="btn-pri"
-          style={{ padding: "7px 11px", fontSize: 12.5, borderRadius: 10 }}
-        >
-          <Icon name="share" size={14} /> Share
-        </button>
       </div>
     </div>
   );
 }
 
-function DesktopAllTrips({
-  onOpenTrip,
-  onNewTrip,
-}: {
+interface DesktopAllTripsProps {
+  tripsResult: ReturnType<typeof useTrips>;
   onOpenTrip: (id: string) => void;
   onNewTrip: () => void;
-}) {
-  const upcoming = TRIPS.filter((t) => t.status === "planning").sort(
+}
+
+function DesktopAllTrips({ tripsResult, onOpenTrip, onNewTrip }: DesktopAllTripsProps) {
+  const summaries = (tripsResult.trips ?? []).map(adaptTripSummary);
+  const upcoming = summaries.filter((t) => t.status === "planning").sort(
     (a, b) => a.daysAway - b.daysAway,
   );
-  const past = TRIPS.filter((t) => t.status === "past");
+  const past = summaries.filter((t) => t.status === "past");
   const next = upcoming[0];
+
   return (
     <div style={{ display: "grid", gap: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <div>
           <h1 className="large-title" style={{ fontSize: 44 }}>
             Your trips
           </h1>
           <div style={{ color: "var(--c-ink-3)", fontSize: 14, marginTop: 4 }}>
-            <span style={{ color: "var(--c-ink-2)" }}>{upcoming.length} in planning</span> · {past.length} past
+            {tripsResult.loading && tripsResult.trips === null ? (
+              "Loading…"
+            ) : tripsResult.error ? (
+              <span style={{ color: "var(--c-accent)" }}>{tripsResult.error}</span>
+            ) : (
+              <>
+                <span style={{ color: "var(--c-ink-2)" }}>{upcoming.length} in planning</span> ·{" "}
+                {past.length} past
+              </>
+            )}
           </div>
         </div>
         <button className="btn-pri" onClick={onNewTrip}>
           <Icon name="plus" size={16} /> New trip
         </button>
       </div>
+
+      {summaries.length === 0 && !tripsResult.loading && (
+        <div
+          className="card"
+          style={{
+            padding: 28,
+            borderRadius: 18,
+            background: "var(--c-tint)",
+            border: 0,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--sf-display)",
+              fontSize: 24,
+              letterSpacing: "-0.02em",
+              marginBottom: 8,
+            }}
+          >
+            Plan your first trip
+          </div>
+          <div style={{ fontSize: 13, color: "var(--c-ink-2)", marginBottom: 16 }}>
+            Bring everyone into one shared plan.
+          </div>
+          <button className="btn-pri" onClick={onNewTrip}>
+            <Icon name="plus" size={16} /> Create trip
+          </button>
+        </div>
+      )}
 
       {next && (
         <button
@@ -443,9 +639,22 @@ function DesktopAllTrips({
                 whiteSpace: "nowrap",
               }}
             >
-              Next trip · in {next.daysAway} days
+              {next.daysAway > 0
+                ? `Next trip · in ${next.daysAway} days`
+                : next.daysAway === 0
+                ? "Today"
+                : `${Math.abs(next.daysAway)} days ago`}
             </span>
-            <AvatarStack ids={next.members} size={28} />
+            <span
+              className="chip"
+              style={{
+                background: "rgba(255,255,255,.22)",
+                color: "#fff",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <Icon name="user_plus" size={14} /> {next.memberCount}
+            </span>
           </div>
           <div style={{ position: "relative" }}>
             <div
@@ -462,9 +671,6 @@ function DesktopAllTrips({
             <div style={{ marginTop: 10, fontSize: 14, display: "flex", gap: 14, opacity: 0.96 }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="calendar" size={14} /> {next.dates}
-              </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="pin" size={14} /> {next.places} places
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="list" size={14} /> {next.days} days
@@ -515,12 +721,14 @@ function DesktopAllTrips({
   );
 }
 
+type SummaryVM = ReturnType<typeof adaptTripSummary>;
+
 function DesktopTripCard({
   trip,
   onOpen,
   muted,
 }: {
-  trip: Trip;
+  trip: SummaryVM;
   onOpen: () => void;
   muted?: boolean;
 }) {
@@ -538,10 +746,7 @@ function DesktopTripCard({
         opacity: muted ? 0.8 : 1,
       }}
     >
-      <div
-        className={trip.cover}
-        style={{ height: 120, borderRadius: 12, position: "relative" }}
-      >
+      <div className={trip.cover} style={{ height: 120, borderRadius: 12, position: "relative" }}>
         <div
           style={{
             position: "absolute",
@@ -553,7 +758,17 @@ function DesktopTripCard({
             alignItems: "flex-end",
           }}
         >
-          <AvatarStack ids={trip.members} size={22} max={3} />
+          <span
+            className="chip"
+            style={{
+              background: "rgba(255,255,255,.22)",
+              color: "#fff",
+              backdropFilter: "blur(10px)",
+              fontSize: 11,
+            }}
+          >
+            <Icon name="user_plus" size={11} /> {trip.memberCount}
+          </span>
         </div>
       </div>
       <div style={{ padding: "0 4px 4px" }}>
@@ -582,7 +797,7 @@ function DesktopTripCard({
   );
 }
 
-function DesktopActivity() {
+function DesktopActivityWrap() {
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 18 }}>
       <div>
@@ -618,19 +833,37 @@ function DesktopSection({ title, children }: { title: string; children: React.Re
   );
 }
 
-function DesktopOverview({
-  trip,
-  cursors,
-  onGoToSection,
-}: {
-  trip: Trip;
+interface DesktopOverviewProps {
+  detail: TripDetail;
+  trip: ReturnType<typeof adaptTripDetail>;
+  directory: MemberDirectory;
   cursors: Record<string, { x: number; y: number }>;
   onGoToSection: (s: DesktopSectionId) => void;
-}) {
-  const itinRef = useRef<HTMLDivElement>(null);
-  const pollsRef = useRef<HTMLDivElement>(null);
+  planSub: PlanSub;
+  setPlanSub: (s: PlanSub) => void;
+  refresh: () => Promise<void>;
+}
+
+function DesktopOverview({
+  detail,
+  trip,
+  directory,
+  cursors,
+  onGoToSection,
+  planSub,
+  setPlanSub,
+  refresh,
+}: DesktopOverviewProps) {
+  const itinRef = useRef<HTMLDivElement | null>(null);
+  const pollsRef = useRef<HTMLDivElement | null>(null);
+  const checklistRef = useRef<HTMLDivElement | null>(null);
   const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) =>
     ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const others = [...directory.byId.values()].filter((m) => m.id !== directory.me.id);
+
+  const focusedTab: PlanSub = planSub;
+  void focusedTab;
+  void setPlanSub;
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
@@ -642,7 +875,8 @@ function DesktopOverview({
           overflow: "hidden",
           padding: "28px 28px 26px",
           color: "#fff",
-          boxShadow: "0 1px 0 rgba(255,255,255,.5) inset, 0 18px 40px -16px rgba(0,0,0,.3)",
+          boxShadow:
+            "0 1px 0 rgba(255,255,255,.5) inset, 0 18px 40px -16px rgba(0,0,0,.3)",
         }}
       >
         <div
@@ -653,14 +887,12 @@ function DesktopOverview({
               "linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 60%, rgba(0,0,0,.32) 100%)",
           }}
         />
-        {MEMBERS.filter((m) => m.online && m.id !== "u1")
-          .slice(0, 2)
-          .map((u) => {
-            const p = cursors[u.id] ?? { x: 0.5, y: 0.5 };
-            const cx = 0.5 + p.x * 0.45;
-            const cy = 0.1 + p.y * 0.5;
-            return <PresenceCursor key={u.id} user={u} x={cx} y={cy} />;
-          })}
+        {others.slice(0, 2).map((u) => {
+          const p = cursors[u.id] ?? { x: 0.5, y: 0.5 };
+          const cx = 0.5 + p.x * 0.45;
+          const cy = 0.1 + p.y * 0.5;
+          return <PresenceCursor key={u.id} user={u} x={cx} y={cy} />;
+        })}
         <div
           style={{
             position: "relative",
@@ -684,7 +916,11 @@ function DesktopOverview({
                 whiteSpace: "nowrap",
               }}
             >
-              Next trip · in {trip.daysAway} days
+              {trip.daysAway > 0
+                ? `Next trip · in ${trip.daysAway} days`
+                : trip.daysAway === 0
+                ? "Today"
+                : `${Math.abs(trip.daysAway)} days ago`}
             </div>
             <div
               style={{
@@ -714,29 +950,33 @@ function DesktopOverview({
       <div className="dsk-jump">
         <JumpCard
           label="Itinerary"
-          sub="14 stops · 4 days"
+          sub={`${detail.days.length} ${detail.days.length === 1 ? "day" : "days"} · ${
+            trip.places
+          } stops`}
           icon="list"
           onClick={() => scrollTo(itinRef)}
           accent="var(--c-link)"
         />
         <JumpCard
           label="Map"
-          sub="8 pins · day routes"
+          sub="Trip places"
           icon="map"
           onClick={() => onGoToSection("map")}
           accent="var(--c-ink)"
         />
         <JumpCard
-          label="2 open polls"
-          sub="awaiting your vote"
-          icon="vote"
-          onClick={() => scrollTo(pollsRef)}
+          label="Checklist"
+          sub="Collaborative packing"
+          icon="check"
+          onClick={() => scrollTo(checklistRef)}
           accent="var(--c-accent)"
           highlight
         />
         <JumpCard
           label="Money"
-          sub="€642 of €1.8k spent"
+          sub={`${trip.budget.currency}${trip.budget.spent.toLocaleString()} of ${
+            trip.budget.currency
+          }${trip.budget.total.toLocaleString()}`}
           icon="cash"
           onClick={() => onGoToSection("money")}
           accent="var(--c-ink)"
@@ -752,7 +992,24 @@ function DesktopOverview({
           >
             <DBlockHeader title="Itinerary" sub="Drag to reorder · everyone sees it" />
             <div style={{ marginTop: 12 }}>
-              <Itinerary embed />
+              <Itinerary
+                embed
+                detail={detail}
+                directory={directory}
+                meId={directory.me.id}
+                refresh={refresh}
+              />
+            </div>
+          </div>
+
+          <div
+            ref={checklistRef}
+            className="card"
+            style={{ padding: 18, borderRadius: 20, scrollMarginTop: 16 }}
+          >
+            <DBlockHeader title="Checklist" sub="Live, shared with everyone on the trip" />
+            <div style={{ marginTop: 12 }}>
+              <Checklist embed directory={directory} />
             </div>
           </div>
 
@@ -761,7 +1018,7 @@ function DesktopOverview({
             className="card"
             style={{ padding: 18, borderRadius: 20, scrollMarginTop: 16 }}
           >
-            <DBlockHeader title="Open polls" sub="2 awaiting your vote" />
+            <DBlockHeader title="Polls" sub="(Mocked — no backend yet)" />
             <div style={{ marginTop: 12 }}>
               <Polls embed />
             </div>
@@ -770,62 +1027,13 @@ function DesktopOverview({
 
         <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
           <div className="card" style={{ padding: 16, borderRadius: 18 }}>
-            <DBlockHeader title="Up next" sub="in 24 days" />
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: "var(--c-tint)",
-                  color: "var(--c-accent)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Icon name="plane" size={22} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>TAP TP1349</div>
-                <div style={{ fontSize: 12, color: "var(--c-ink-3)", marginTop: 2 }}>
-                  Paris → Lisbon · Jun 12, 14:30
-                </div>
-              </div>
-            </div>
-            <div className="hair" style={{ margin: "14px 0" }} />
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: "#E7E1FF",
-                  color: "#5345BC",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Icon name="bed" size={22} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>Memmo Alfama</div>
-                <div style={{ fontSize: 12, color: "var(--c-ink-3)", marginTop: 2 }}>
-                  Check-in 16:00 · 2 rooms · 3 nights
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: 16, borderRadius: 18 }}>
-            <DBlockHeader title="Activity" sub={<Typing user={memberById("u3")} />} />
+            <DBlockHeader title="Crew" sub={`${detail.members.length} travelers`} />
             <div style={{ marginTop: 10, display: "grid", gap: 2 }}>
-              {ACTIVITY.map((a, i) => {
-                const u = memberById(a.who);
+              {detail.members.map((m, i) => {
+                const u = directory.resolve(m.id);
                 return (
                   <div
-                    key={a.id}
+                    key={m.id}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -834,12 +1042,15 @@ function DesktopOverview({
                       borderTop: i === 0 ? "0" : "0.5px solid var(--c-hair)",
                     }}
                   >
-                    <Avatar user={u} size={24} showOnline />
-                    <div style={{ flex: 1, fontSize: 13, lineHeight: 1.3 }}>
-                      <b>{u.name}</b>{" "}
-                      <span style={{ color: "var(--c-ink-2)" }}>{a.text}</span>
+                    <Avatar user={u} size={28} showOnline />
+                    <div style={{ flex: 1, lineHeight: 1.2 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>
+                        {m.id === directory.me.id ? "You" : m.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--c-ink-3)" }}>
+                        {m.email} · {m.role}
+                      </div>
                     </div>
-                    <span style={{ fontSize: 11, color: "var(--c-ink-3)" }}>{a.at}</span>
                   </div>
                 );
               })}
@@ -847,32 +1058,14 @@ function DesktopOverview({
           </div>
 
           <div className="card" style={{ padding: 16, borderRadius: 18 }}>
-            <DBlockHeader title="Checklist" sub="7 of 13 done" />
-            <div
-              style={{
-                marginTop: 10,
-                height: 8,
-                borderRadius: 99,
-                background: "var(--c-pressed)",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{ width: `${(7 / 13) * 100}%`, height: "100%", background: "var(--c-accent)" }} />
-            </div>
-            <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
-              {CHECKLIST.flatMap((s) => s.items)
-                .filter((it) => !it.done)
-                .slice(0, 4)
-                .map((it) => {
-                  const u = memberById(it.assigned);
-                  return (
-                    <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Checkbox checked={false} />
-                      <span style={{ flex: 1, fontSize: 13 }}>{it.text}</span>
-                      <Avatar user={u} size={18} />
-                    </div>
-                  );
-                })}
+            <DBlockHeader
+              title="Activity"
+              sub={
+                others[0] ? <Typing user={others[0]} /> : "Nothing happening right now"
+              }
+            />
+            <div style={{ marginTop: 10, fontSize: 13, color: "var(--c-ink-3)" }}>
+              Per-trip activity feed isn't wired up yet — see the global Activity tab.
             </div>
           </div>
         </div>
@@ -992,13 +1185,7 @@ function JumpCard({
   );
 }
 
-function DBlockHeader({
-  title,
-  sub,
-}: {
-  title: string;
-  sub?: React.ReactNode;
-}) {
+function DBlockHeader({ title, sub }: { title: string; sub?: React.ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
       <div>
@@ -1006,145 +1193,5 @@ function DBlockHeader({
         {sub && <div style={{ fontSize: 11.5, color: "var(--c-ink-3)", marginTop: 2 }}>{sub}</div>}
       </div>
     </div>
-  );
-}
-
-// ───── Desktop modals
-function NewTripModalDesktop({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [name, setName] = useState("Tokyo neon weekend");
-  const [cover, setCover] = useState("cover-kyoto");
-  const [dates, setDates] = useState("Sep 4 – Sep 8");
-  const [invite, setInvite] = useState<string[]>(["u2", "u3"]);
-  const COVERS = ["cover-lisbon", "cover-paris", "cover-kyoto", "cover-iceland"];
-  return (
-    <DesktopDialog open={open} onClose={onClose} title="New trip" width={520}>
-      <div className="sec-title" style={{ marginBottom: 8 }}>
-        Cover
-      </div>
-      <div style={{ display: "flex", gap: 8, paddingBottom: 4 }}>
-        {COVERS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCover(c)}
-            className={c}
-            style={{
-              flex: 1,
-              height: 64,
-              borderRadius: 12,
-              border: cover === c ? "2.5px solid var(--c-accent)" : "2.5px solid transparent",
-            }}
-          />
-        ))}
-      </div>
-      <div className="sec-title" style={{ marginTop: 14, marginBottom: 8 }}>
-        Name
-      </div>
-      <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-      <div className="sec-title" style={{ marginTop: 14, marginBottom: 8 }}>
-        Dates
-      </div>
-      <input className="input" value={dates} onChange={(e) => setDates(e.target.value)} />
-      <div className="sec-title" style={{ marginTop: 14, marginBottom: 8 }}>
-        Invite friends
-      </div>
-      <div style={{ display: "grid", gap: 6 }}>
-        {MEMBERS.filter((m) => m.id !== "u1").map((m) => {
-          const on = invite.includes(m.id);
-          return (
-            <button
-              key={m.id}
-              onClick={() =>
-                setInvite((prev) =>
-                  on ? prev.filter((i) => i !== m.id) : [...prev, m.id],
-                )
-              }
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "9px 12px",
-                borderRadius: 12,
-                background: "var(--c-surface)",
-                border: "0.5px solid var(--c-hair)",
-                width: "100%",
-                textAlign: "left",
-              }}
-            >
-              <Avatar user={m} size={26} showOnline />
-              <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{m.name}</div>
-              <Checkbox checked={on} />
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "flex-end" }}>
-        <button className="btn-ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn-pri" onClick={onClose}>
-          <Icon name="sparkle" size={16} /> Create trip
-        </button>
-      </div>
-    </DesktopDialog>
-  );
-}
-
-function InviteModalDesktop({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <DesktopDialog open={open} onClose={onClose} title="Invite to trip" width={460}>
-      <div
-        className="card"
-        style={{
-          padding: 12,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          background: "var(--c-surface)",
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "var(--c-tint)",
-            color: "var(--c-accent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Icon name="share" size={18} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, color: "var(--c-ink-3)" }}>Share link · expires in 7d</div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>trip.app/j/lisbon-mn3k7</div>
-        </div>
-        <button
-          className="btn-ghost"
-          onClick={() => {
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
-          }}
-          style={{ background: copied ? "var(--c-tint)" : undefined }}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-      <div
-        style={{
-          marginTop: 14,
-          padding: 12,
-          borderRadius: 12,
-          background: "var(--c-pressed)",
-          fontSize: 12.5,
-          color: "var(--c-ink-2)",
-        }}
-      >
-        Anyone with this link can view &amp; suggest edits. You&apos;ll approve changes from non-members.
-      </div>
-    </DesktopDialog>
   );
 }

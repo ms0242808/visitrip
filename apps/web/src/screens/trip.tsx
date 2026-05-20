@@ -1,22 +1,33 @@
 import { useRef } from "react";
+import type { TripDetail } from "@visitrip/shared";
 import { Icon } from "../components/Icon";
 import { Avatar, AvatarStack } from "../components/Avatar";
-import { Cover, GlassPill, PresenceCursor, Typing, useDriftingCursors } from "../components/ui";
+import {
+  Cover,
+  GlassPill,
+  PresenceCursor,
+  Typing,
+  useDriftingCursors,
+} from "../components/ui";
 import { Itinerary } from "./itinerary";
 import { Checklist } from "./checklist";
 import { Polls } from "./polls";
-import { ACTIVITY, MEMBERS, memberById, type Trip } from "../lib/data";
+import type { MemberDirectory } from "../lib/adapters";
+import type { Trip as ViewTrip } from "../lib/data";
 
 export type PlanSub = "overview" | "itinerary" | "checklist" | "polls";
 export type TripQuickAction = "map" | "expenses" | "docs" | "invite";
 
 interface TripOverviewProps {
-  trip: Trip;
+  trip: ViewTrip;
+  detail: TripDetail;
+  directory: MemberDirectory;
   onBack: () => void;
   onSubScreen: (sub: TripQuickAction) => void;
   onInvite: () => void;
   sub: PlanSub;
   setSub: (sub: PlanSub) => void;
+  refresh: () => Promise<void>;
 }
 
 const SUB_TABS: { id: PlanSub; label: string }[] = [
@@ -26,11 +37,23 @@ const SUB_TABS: { id: PlanSub; label: string }[] = [
   { id: "polls", label: "Polls" },
 ];
 
-export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub }: TripOverviewProps) {
-  const cursors = useDriftingCursors(
-    MEMBERS.filter((m) => m.online && m.id !== "u1"),
-    [trip.id],
-  );
+export function TripOverview({
+  trip,
+  detail,
+  directory,
+  onBack,
+  onSubScreen,
+  onInvite,
+  sub,
+  setSub,
+  refresh,
+}: TripOverviewProps) {
+  const others = Object.values(Object.fromEntries(
+    [...directory.byId].filter(([id]) => id !== directory.me.id),
+  )).map((_, i) => i); // placeholder
+  void others;
+  const memberValues = [...directory.byId.values()].filter((m) => m.id !== directory.me.id);
+  const cursors = useDriftingCursors(memberValues, [trip.id]);
   const tab = sub || "overview";
   const tabStripRef = useRef<HTMLDivElement | null>(null);
 
@@ -68,7 +91,7 @@ export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub 
             }}
           />
 
-          {MEMBERS.filter((m) => m.online && m.id !== "u1").map((u) => {
+          {memberValues.slice(0, 3).map((u) => {
             const p = cursors[u.id] ?? { x: 0.5, y: 0.5 };
             return <PresenceCursor key={u.id} user={u} x={p.x} y={p.y} />;
           })}
@@ -119,7 +142,13 @@ export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub 
               >
                 {trip.dates}
               </span>
-              <span style={{ opacity: 0.92, whiteSpace: "nowrap" }}>· in {trip.daysAway} days</span>
+              <span style={{ opacity: 0.92, whiteSpace: "nowrap" }}>
+                {trip.daysAway > 0
+                  ? `· in ${trip.daysAway} days`
+                  : trip.daysAway === 0
+                  ? "· today"
+                  : `· ${Math.abs(trip.daysAway)} days ago`}
+              </span>
             </div>
             <div
               style={{
@@ -153,7 +182,7 @@ export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub 
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-            <AvatarStack ids={trip.members} size={26} max={5} />
+            <AvatarStack ids={trip.members} max={5} />
             <div
               style={{
                 fontSize: 12.5,
@@ -163,11 +192,8 @@ export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub 
                 textOverflow: "ellipsis",
               }}
             >
-              <b style={{ color: "var(--c-ink)" }}>{trip.members.length}</b> travelers
-              <span style={{ color: "var(--c-ink-3)" }}>
-                {" "}
-                · {trip.members.filter((id) => memberById(id).online).length} online
-              </span>
+              <b style={{ color: "var(--c-ink)" }}>{trip.members.length}</b>{" "}
+              {trip.members.length === 1 ? "traveler" : "travelers"}
             </div>
           </div>
           <button
@@ -189,14 +215,19 @@ export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub 
       <div style={{ padding: "20px 20px 12px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <StatCard label="Days" big={`${trip.days}`} sub="planned" />
-          <StatCard label="Places" big={`${trip.places}`} sub="on the map" />
+          <StatCard label="Places" big={`${trip.places}`} sub="on the itinerary" />
           <StatCard
             label="Budget"
             big={`${trip.budget.currency}${trip.budget.spent.toLocaleString()}`}
             sub={`of ${trip.budget.currency}${trip.budget.total.toLocaleString()}`}
-            progress={trip.budget.spent / trip.budget.total}
+            progress={trip.budget.total > 0 ? trip.budget.spent / trip.budget.total : 0}
           />
-          <StatCard label="Open polls" big="2" sub="awaiting votes" highlight />
+          <StatCard
+            label="Expenses"
+            big={`${detail.expenses.length}`}
+            sub={detail.expenses.length === 1 ? "logged" : "logged"}
+            highlight={detail.expenses.length > 0}
+          />
         </div>
       </div>
 
@@ -240,9 +271,23 @@ export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub 
       </div>
 
       <div style={{ padding: "14px 0 0" }}>
-        {tab === "overview" && <OverviewBody onSubScreen={onSubScreen} />}
-        {tab === "itinerary" && <Itinerary embed />}
-        {tab === "checklist" && <Checklist embed />}
+        {tab === "overview" && (
+          <OverviewBody
+            detail={detail}
+            directory={directory}
+            onSubScreen={onSubScreen}
+          />
+        )}
+        {tab === "itinerary" && (
+          <Itinerary
+            embed
+            detail={detail}
+            directory={directory}
+            meId={directory.me.id}
+            refresh={refresh}
+          />
+        )}
+        {tab === "checklist" && <Checklist embed directory={directory} />}
         {tab === "polls" && <Polls embed />}
       </div>
     </div>
@@ -303,7 +348,7 @@ export function StatCard({ label, big, sub, progress, highlight }: StatCardProps
         >
           <div
             style={{
-              width: `${Math.min(100, progress * 100)}%`,
+              width: `${Math.min(100, Math.max(0, progress * 100))}%`,
               height: "100%",
               background: progress > 0.85 ? "var(--c-accent)" : "var(--c-ink)",
             }}
@@ -314,13 +359,24 @@ export function StatCard({ label, big, sub, progress, highlight }: StatCardProps
   );
 }
 
-function OverviewBody({ onSubScreen }: { onSubScreen: (id: TripQuickAction) => void }) {
+interface OverviewBodyProps {
+  detail: TripDetail;
+  directory: MemberDirectory;
+  onSubScreen: (id: TripQuickAction) => void;
+}
+
+function OverviewBody({ detail, directory, onSubScreen }: OverviewBodyProps) {
   const actions: { id: TripQuickAction; label: string; icon: "map" | "cash" | "doc" | "user_plus"; acc: string }[] = [
     { id: "map", label: "Map", icon: "map", acc: "var(--c-link)" },
     { id: "expenses", label: "Expenses", icon: "cash", acc: "var(--c-accent)" },
     { id: "docs", label: "Documents", icon: "doc", acc: "var(--c-ink)" },
     { id: "invite", label: "Invite", icon: "user_plus", acc: "var(--c-link)" },
   ];
+
+  const upcomingItem = detail.days
+    .flatMap((d) => d.items.map((it) => ({ ...it, dayDate: d.date })))
+    .sort((a, b) => `${a.dayDate}${a.time}`.localeCompare(`${b.dayDate}${b.time}`))[0];
+
   return (
     <div>
       <div style={{ padding: "0 20px 18px" }}>
@@ -369,15 +425,18 @@ function OverviewBody({ onSubScreen }: { onSubScreen: (id: TripQuickAction) => v
             marginBottom: 8,
           }}
         >
-          <div className="sec-title">Live activity</div>
-          <Typing user={memberById("u3")} />
+          <div className="sec-title">Crew</div>
+          {directory.byId.size > 1 && (
+            <Typing user={[...directory.byId.values()].find((m) => m.id !== directory.me.id) ?? directory.me} />
+          )}
         </div>
         <div className="card" style={{ borderRadius: 18, padding: "4px 0" }}>
-          {ACTIVITY.map((a, i) => {
-            const u = memberById(a.who);
+          {detail.members.map((m, i) => {
+            const u = directory.resolve(m.id);
+            const isMe = m.id === directory.me.id;
             return (
               <div
-                key={a.id}
+                key={m.id}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -387,11 +446,14 @@ function OverviewBody({ onSubScreen }: { onSubScreen: (id: TripQuickAction) => v
                 }}
               >
                 <Avatar user={u} size={28} showOnline />
-                <div style={{ flex: 1, fontSize: 14, lineHeight: 1.3 }}>
-                  <b style={{ fontWeight: 600 }}>{u.name}</b>
-                  <span style={{ color: "var(--c-ink-2)" }}> {a.text}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    {isMe ? "You" : m.name}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>
+                    {m.email} · {m.role}
+                  </div>
                 </div>
-                <span style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>{a.at}</span>
               </div>
             );
           })}
@@ -402,34 +464,57 @@ function OverviewBody({ onSubScreen }: { onSubScreen: (id: TripQuickAction) => v
         <div className="sec-title" style={{ marginBottom: 8 }}>
           Up next
         </div>
-        <div
-          className="card"
-          style={{ padding: 14, borderRadius: 18, display: "flex", gap: 12, alignItems: "center" }}
-        >
+        {upcomingItem ? (
           <div
+            className="card"
             style={{
-              width: 46,
-              height: 46,
-              borderRadius: 14,
-              background: "var(--c-tint)",
-              color: "var(--c-accent)",
-              display: "inline-flex",
+              padding: 14,
+              borderRadius: 18,
+              display: "flex",
+              gap: 12,
               alignItems: "center",
-              justifyContent: "center",
             }}
           >
-            <Icon name="plane" size={22} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>TAP TP1349 — Paris to Lisbon</div>
-            <div style={{ fontSize: 12, color: "var(--c-ink-3)", marginTop: 2 }}>
-              Jun 12 · 14:30 · Seat 14A
+            <div
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 14,
+                background: "var(--c-tint)",
+                color: "var(--c-accent)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="calendar" size={22} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {upcomingItem.title}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--c-ink-3)", marginTop: 2 }}>
+                {upcomingItem.dayDate} · {upcomingItem.time}
+                {upcomingItem.sub ? ` · ${upcomingItem.sub}` : ""}
+              </div>
             </div>
           </div>
-          <button className="btn-ghost" style={{ padding: "8px 12px" }}>
-            View
-          </button>
-        </div>
+        ) : (
+          <div
+            className="card"
+            style={{ padding: 14, borderRadius: 18, color: "var(--c-ink-3)", fontSize: 13 }}
+          >
+            Nothing planned yet. Tap Itinerary to add the first stop.
+          </div>
+        )}
       </div>
     </div>
   );
