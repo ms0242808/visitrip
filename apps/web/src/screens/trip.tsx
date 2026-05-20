@@ -1,291 +1,436 @@
-import { useState } from "react";
-import type { Day, TripDetail } from "@visitrip/shared";
-import { TripCover } from "../components/TripCover";
-import { AvatarStack } from "../components/Avatar";
+import { useRef } from "react";
 import { Icon } from "../components/Icon";
-import { Button, IconButton, NavBar } from "../components/ui";
-import { daysBetween, fmtRange } from "../lib/format";
-import { api } from "../lib/api";
-import { useConnection, usePresence } from "../lib/yjs";
-import { AddDaySheet } from "./sheets";
-import { DocsPanel, ExpensesPanel, MapPanel, PackingPanel } from "./trip-panels";
+import { Avatar, AvatarStack } from "../components/Avatar";
+import { Cover, GlassPill, PresenceCursor, Typing, useDriftingCursors } from "../components/ui";
+import { Itinerary } from "./itinerary";
+import { Checklist } from "./checklist";
+import { Polls } from "./polls";
+import { ACTIVITY, MEMBERS, memberById, type Trip } from "../lib/data";
 
-type TripTab = "itinerary" | "map" | "expenses" | "packing" | "docs";
+export type PlanSub = "overview" | "itinerary" | "checklist" | "polls";
+export type TripQuickAction = "map" | "expenses" | "docs" | "invite";
 
-interface TripScreenProps {
-  trip: TripDetail;
+interface TripOverviewProps {
+  trip: Trip;
   onBack: () => void;
-  onOpenDay: (day: Day) => void;
-  onShare: () => void;
-  onOpenSettings: () => void;
-  refresh: () => Promise<void>;
+  onSubScreen: (sub: TripQuickAction) => void;
+  onInvite: () => void;
+  sub: PlanSub;
+  setSub: (sub: PlanSub) => void;
 }
 
-export function TripScreen({ trip, onBack, onOpenDay, onShare, onOpenSettings, refresh }: TripScreenProps) {
-  const [tab, setTab] = useState<TripTab>("itinerary");
-  const [scrolled, setScrolled] = useState(false);
-  const peers = usePresence();
-  const { connected } = useConnection();
-  const livePeerIds = new Set(peers.map((p) => p.user.id));
+const SUB_TABS: { id: PlanSub; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "itinerary", label: "Itinerary" },
+  { id: "checklist", label: "Checklist" },
+  { id: "polls", label: "Polls" },
+];
+
+export function TripOverview({ trip, onBack, onSubScreen, onInvite, sub, setSub }: TripOverviewProps) {
+  const cursors = useDriftingCursors(
+    MEMBERS.filter((m) => m.online && m.id !== "u1"),
+    [trip.id],
+  );
+  const tab = sub || "overview";
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
+
+  const onTab = (id: PlanSub) => {
+    setSub(id);
+    requestAnimationFrame(() => {
+      const el = tabStripRef.current;
+      if (!el) return;
+      let p: HTMLElement | null = el.parentElement;
+      while (p && !p.classList.contains("scroll")) p = p.parentElement;
+      if (!p) return;
+      const offset = el.offsetTop;
+      if (p.scrollTop < offset) p.scrollTo({ top: offset, behavior: "smooth" });
+    });
+  };
 
   return (
-    <div className="vt-screen vt-screen-grouped">
-      <NavBar
-        title={scrolled ? trip.title : ""}
-        scrolled={scrolled}
-        leading={<IconButton name="chevronL" onClick={onBack} />}
-        trailing={
-          <>
-            <IconButton name="share" onClick={onShare} />
-            <IconButton name="more" onClick={onOpenSettings} />
-          </>
-        }
-      />
-      <div className="vt-scroll" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 130)}>
-        <div className="vt-content-narrow">
-          <TripCover kind={trip.cover} height={220} rounded={0}>
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  opacity: 0.85,
-                }}
-              >
-                {trip.location} · {daysBetween(trip.startDate, trip.endDate) + 1} days
-              </div>
-              <div
-                style={{
-                  fontSize: 30,
-                  fontWeight: 700,
-                  letterSpacing: "-0.02em",
-                  marginTop: 4,
-                  textShadow: "0 1px 2px rgba(0,0,0,0.2)",
-                }}
-              >
-                {trip.title}
-              </div>
-              <div style={{ fontSize: 14, marginTop: 4, opacity: 0.9 }}>{fmtRange(trip.startDate, trip.endDate)}</div>
-            </div>
-          </TripCover>
-        </div>
+    <div className="screen-enter" style={{ paddingBottom: 110 }}>
+      <div style={{ position: "relative" }}>
+        <Cover
+          variant={trip.cover}
+          style={{
+            height: 280,
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: "0 0 28px 28px",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0) 60%, rgba(0,0,0,.5) 100%)",
+            }}
+          />
 
-        <div className="vt-content-narrow" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-          <div className="vt-card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-            <PresenceStack members={trip.members} livePeerIds={livePeerIds} />
-            <div style={{ flex: 1, fontSize: 13, color: "var(--vt-label-secondary)" }}>
-              <b style={{ color: "var(--vt-label)" }}>
-                {trip.members.length} {trip.members.length === 1 ? "traveler" : "travelers"}
-              </b>
-              <div style={{ color: "var(--vt-label-tertiary)" }}>
-                {peers.length > 0
-                  ? `${peers.length} here now · ${connected ? "live" : "reconnecting…"}`
-                  : trip.members.map((m) => m.name.split(" ")[0]).join(" · ")}
-              </div>
+          {MEMBERS.filter((m) => m.online && m.id !== "u1").map((u) => {
+            const p = cursors[u.id] ?? { x: 0.5, y: 0.5 };
+            return <PresenceCursor key={u.id} user={u} x={p.x} y={p.y} />;
+          })}
+
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "14px 14px 0",
+            }}
+          >
+            <GlassPill onClick={onBack}>
+              <Icon name="chev_l" size={20} />
+            </GlassPill>
+            <div style={{ display: "flex", gap: 8 }}>
+              <GlassPill onClick={onInvite} wide>
+                <Icon name="user_plus" size={18} />
+                <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 4 }}>Invite</span>
+              </GlassPill>
+              <GlassPill>
+                <Icon name="share" size={18} />
+              </GlassPill>
             </div>
-            <Button size="sm" variant="ghost" icon="plus" onClick={onShare}>
-              Invite
-            </Button>
           </div>
 
-          {trip.summary && (
-            <div style={{ fontSize: 15, lineHeight: 1.5, color: "var(--vt-label-secondary)" }}>{trip.summary}</div>
-          )}
-
-          <div className="vt-tabs" style={{ marginTop: 4, gap: 18 }}>
-            {(
-              [
-                { id: "itinerary", label: "Itinerary" },
-                { id: "map", label: "Map" },
-                { id: "expenses", label: "Expenses" },
-                { id: "packing", label: "Packing" },
-                { id: "docs", label: "Documents" },
-              ] as Array<{ id: TripTab; label: string }>
-            ).map((t) => (
-              <button key={t.id} aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
+          <div style={{ position: "absolute", left: 20, right: 20, bottom: 28, color: "#fff" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 8,
+                fontSize: 12,
+                fontWeight: 500,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  background: "rgba(255,255,255,.2)",
+                  backdropFilter: "blur(10px)",
+                  padding: "4px 9px",
+                  borderRadius: 999,
+                  letterSpacing: 0.04,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {trip.dates}
+              </span>
+              <span style={{ opacity: 0.92, whiteSpace: "nowrap" }}>· in {trip.daysAway} days</span>
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--sf-display)",
+                fontSize: 36,
+                fontWeight: 400,
+                lineHeight: 1.05,
+                letterSpacing: "-0.02em",
+                textShadow: "0 1px 16px rgba(0,0,0,.22)",
+                textWrap: "balance",
+              }}
+            >
+              {trip.name}
+            </div>
           </div>
+        </Cover>
 
-          {tab === "itinerary" && <ItineraryList trip={trip} onOpenDay={onOpenDay} refresh={refresh} />}
-          {tab === "map" && <MapPanel trip={trip} refresh={refresh} />}
-          {tab === "expenses" && <ExpensesPanel trip={trip} refresh={refresh} />}
-          {tab === "packing" && <PackingPanel trip={trip} refresh={refresh} />}
-          {tab === "docs" && <DocsPanel trip={trip} refresh={refresh} />}
+        <div
+          style={{
+            margin: "-26px 20px 0",
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderRadius: 999,
+            background: "var(--c-surface)",
+            border: "0.5px solid var(--c-hair)",
+            boxShadow: "0 14px 28px -16px rgba(0,0,0,.22)",
+            position: "relative",
+            zIndex: 5,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+            <AvatarStack ids={trip.members} size={26} max={5} />
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--c-ink-2)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              <b style={{ color: "var(--c-ink)" }}>{trip.members.length}</b> travelers
+              <span style={{ color: "var(--c-ink-3)" }}>
+                {" "}
+                · {trip.members.filter((id) => memberById(id).online).length} online
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onInvite}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              color: "var(--c-accent)",
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            <Icon name="plus" size={14} /> Add
+          </button>
         </div>
-        <div style={{ height: 100 }} />
+      </div>
+
+      <div style={{ padding: "20px 20px 12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <StatCard label="Days" big={`${trip.days}`} sub="planned" />
+          <StatCard label="Places" big={`${trip.places}`} sub="on the map" />
+          <StatCard
+            label="Budget"
+            big={`${trip.budget.currency}${trip.budget.spent.toLocaleString()}`}
+            sub={`of ${trip.budget.currency}${trip.budget.total.toLocaleString()}`}
+            progress={trip.budget.spent / trip.budget.total}
+          />
+          <StatCard label="Open polls" big="2" sub="awaiting votes" highlight />
+        </div>
+      </div>
+
+      <div
+        ref={tabStripRef}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          padding: "10px 20px 10px",
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          scrollbarWidth: "none",
+          background: "color-mix(in oklab, var(--c-bg), transparent 6%)",
+          backdropFilter: "blur(16px) saturate(160%)",
+          WebkitBackdropFilter: "blur(16px) saturate(160%)",
+          borderBottom: "0.5px solid var(--c-hair)",
+        }}
+      >
+        {SUB_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onTab(t.id)}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: -0.1,
+              background: tab === t.id ? "var(--c-ink)" : "transparent",
+              color: tab === t.id ? "var(--c-bg)" : "var(--c-ink-2)",
+              border: tab === t.id ? "0" : "0.5px solid var(--c-hair)",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: "14px 0 0" }}>
+        {tab === "overview" && <OverviewBody onSubScreen={onSubScreen} />}
+        {tab === "itinerary" && <Itinerary embed />}
+        {tab === "checklist" && <Checklist embed />}
+        {tab === "polls" && <Polls embed />}
       </div>
     </div>
   );
 }
 
-interface ItineraryListProps {
-  trip: TripDetail;
-  onOpenDay: (day: Day) => void;
-  refresh: () => Promise<void>;
+interface StatCardProps {
+  label: string;
+  big: string;
+  sub: string;
+  progress?: number;
+  highlight?: boolean;
 }
 
-function ItineraryList({ trip, onOpenDay, refresh }: ItineraryListProps) {
-  const [adding, setAdding] = useState(false);
-  const nextDate = trip.days.length > 0
-    ? new Date(new Date(trip.days[trip.days.length - 1]!.date).getTime() + 86_400_000)
-        .toISOString()
-        .slice(0, 10)
-    : trip.startDate;
-
-  const addSheet = adding ? (
-    <AddDaySheet
-      defaultDate={nextDate}
-      onClose={() => setAdding(false)}
-      onCreate={async (input) => {
-        await api.createDay(trip.id, input);
-        await refresh();
-        setAdding(false);
+export function StatCard({ label, big, sub, progress, highlight }: StatCardProps) {
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 14,
+        borderRadius: 16,
+        background: highlight ? "var(--c-tint)" : "var(--c-surface)",
+        border: highlight ? "0" : "0.5px solid var(--c-hair)",
       }}
-    />
-  ) : null;
-
-  if (trip.days.length === 0) {
-    return (
-      <>
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.06,
+          textTransform: "uppercase",
+          color: "var(--c-ink-3)",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 26,
+          fontWeight: 600,
+          letterSpacing: "-0.02em",
+          marginTop: 4,
+          fontFeatureSettings: '"tnum"',
+        }}
+      >
+        {big}
+      </div>
+      <div style={{ fontSize: 11.5, color: "var(--c-ink-3)", marginTop: 2 }}>{sub}</div>
+      {typeof progress === "number" && (
         <div
           style={{
-            padding: "24px 16px",
-            textAlign: "center",
-            fontSize: 14,
-            color: "var(--vt-label-tertiary)",
+            marginTop: 8,
+            height: 4,
+            borderRadius: 99,
+            background: "var(--c-pressed)",
+            overflow: "hidden",
           }}
         >
-          No days yet. Add the first one to start planning.
-        </div>
-        <Button variant="secondary" block icon="plus" onClick={() => setAdding(true)}>
-          Add a day
-        </Button>
-        {addSheet}
-      </>
-    );
-  }
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {trip.days.map((day, i) => {
-        const has = day.items.length;
-        return (
           <div
-            key={day.id}
-            className="vt-card"
-            onClick={() => onOpenDay(day)}
-            style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}
-          >
-            <DayChip date={day.date} accent={i === 0} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.005em" }}>
-                {day.label.split(" · ")[1] ?? day.label}
-              </div>
-              <div style={{ fontSize: 13, color: "var(--vt-label-tertiary)", marginTop: 2 }}>
-                {has
-                  ? `${has} planned · ${day.items.filter((x) => x.tag).length} booked`
-                  : "Open to plan"}
-              </div>
-            </div>
-            {has > 0 && (
-              <div style={{ display: "flex", gap: 4 }}>
-                {day.items.slice(0, 3).map((it) => (
-                  <span
-                    key={it.id}
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 6,
-                      background: "var(--vt-fill-tertiary)",
-                      color: "var(--vt-label-secondary)",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon name={it.icon} size={13} />
-                  </span>
-                ))}
-              </div>
-            )}
-            <Icon name="chevron" size={16} style={{ color: "var(--vt-label-quaternary)" }} />
-          </div>
-        );
-      })}
-      <Button variant="secondary" block icon="plus" onClick={() => setAdding(true)} style={{ marginTop: 4 }}>
-        Add a day
-      </Button>
-      {addSheet}
-    </div>
-  );
-}
-
-interface DayChipProps {
-  date: string;
-  accent?: boolean;
-}
-
-interface PresenceStackProps {
-  members: TripDetail["members"];
-  livePeerIds: Set<string>;
-}
-
-function PresenceStack({ members, livePeerIds }: PresenceStackProps) {
-  return (
-    <div style={{ position: "relative" }}>
-      <AvatarStack people={members} max={4} size={32} />
-      {livePeerIds.size > 0 && (
-        <span
-          style={{
-            position: "absolute",
-            right: -2,
-            bottom: -2,
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            background: "var(--vt-accent)",
-            boxShadow: "0 0 0 2px var(--vt-bg-elevated, #fff)",
-          }}
-          aria-label={`${livePeerIds.size} live now`}
-        />
+            style={{
+              width: `${Math.min(100, progress * 100)}%`,
+              height: "100%",
+              background: progress > 0.85 ? "var(--c-accent)" : "var(--c-ink)",
+            }}
+          />
+        </div>
       )}
     </div>
   );
 }
 
-function DayChip({ date, accent }: DayChipProps) {
-  const d = new Date(date);
+function OverviewBody({ onSubScreen }: { onSubScreen: (id: TripQuickAction) => void }) {
+  const actions: { id: TripQuickAction; label: string; icon: "map" | "cash" | "doc" | "user_plus"; acc: string }[] = [
+    { id: "map", label: "Map", icon: "map", acc: "var(--c-link)" },
+    { id: "expenses", label: "Expenses", icon: "cash", acc: "var(--c-accent)" },
+    { id: "docs", label: "Documents", icon: "doc", acc: "var(--c-ink)" },
+    { id: "invite", label: "Invite", icon: "user_plus", acc: "var(--c-link)" },
+  ];
   return (
-    <div
-      style={{
-        width: 52,
-        height: 52,
-        flex: "0 0 52px",
-        borderRadius: 14,
-        background: accent ? "var(--vt-accent)" : "var(--vt-fill-tertiary)",
-        color: accent ? "var(--vt-on-accent)" : "var(--vt-label)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        lineHeight: 1,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          opacity: 0.85,
-        }}
-      >
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]}
+    <div>
+      <div style={{ padding: "0 20px 18px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+          {actions.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => onSubScreen(a.id)}
+              className="card"
+              style={{
+                padding: "14px 8px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: 16,
+                background: "var(--c-surface)",
+              }}
+            >
+              <span
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  background: "var(--c-pressed)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: a.acc,
+                }}
+              >
+                <Icon name={a.icon} size={20} stroke={1.7} />
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>{a.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div style={{ fontSize: 20, fontWeight: 700, marginTop: 3 }}>{d.getDate()}</div>
+
+      <div style={{ padding: "0 20px 14px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: 8,
+          }}
+        >
+          <div className="sec-title">Live activity</div>
+          <Typing user={memberById("u3")} />
+        </div>
+        <div className="card" style={{ borderRadius: 18, padding: "4px 0" }}>
+          {ACTIVITY.map((a, i) => {
+            const u = memberById(a.who);
+            return (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 14px",
+                  borderTop: i === 0 ? "0" : "0.5px solid var(--c-hair)",
+                }}
+              >
+                <Avatar user={u} size={28} showOnline />
+                <div style={{ flex: 1, fontSize: 14, lineHeight: 1.3 }}>
+                  <b style={{ fontWeight: 600 }}>{u.name}</b>
+                  <span style={{ color: "var(--c-ink-2)" }}> {a.text}</span>
+                </div>
+                <span style={{ fontSize: 11.5, color: "var(--c-ink-3)" }}>{a.at}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ padding: "0 20px 18px" }}>
+        <div className="sec-title" style={{ marginBottom: 8 }}>
+          Up next
+        </div>
+        <div
+          className="card"
+          style={{ padding: 14, borderRadius: 18, display: "flex", gap: 12, alignItems: "center" }}
+        >
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              background: "var(--c-tint)",
+              color: "var(--c-accent)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="plane" size={22} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>TAP TP1349 — Paris to Lisbon</div>
+            <div style={{ fontSize: 12, color: "var(--c-ink-3)", marginTop: 2 }}>
+              Jun 12 · 14:30 · Seat 14A
+            </div>
+          </div>
+          <button className="btn-ghost" style={{ padding: "8px 12px" }}>
+            View
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

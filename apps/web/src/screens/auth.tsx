@@ -1,6 +1,4 @@
 import { useState, type ReactNode } from "react";
-import { Button, Field, Input } from "../components/ui";
-import { BrandMark } from "../components/Brand";
 import { useAuth } from "../lib/auth";
 
 interface ForgotPasswordProps {
@@ -17,7 +15,7 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
       sub={
         submitted ? (
           <>
-            If an account exists for <b style={{ color: "var(--vt-label)" }}>{email}</b>, we sent a link to
+            If an account exists for <b style={{ color: "var(--c-ink)" }}>{email}</b>, we sent a link to
             reset the password. The link expires in 30 minutes.
           </>
         ) : (
@@ -25,16 +23,16 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
         )
       }
       footer={
-        <a onClick={onBack} style={{ color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>
+        <a onClick={onBack} style={{ color: "var(--c-accent)", fontWeight: 600, cursor: "pointer" }}>
           Back to sign in
         </a>
       }
     >
       {submitted ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360, margin: "0 auto" }}>
-          <Button variant="primary" size="lg" block onClick={onBack}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <button className="btn-pri" style={{ width: "100%" }} onClick={onBack}>
             Done
-          </Button>
+          </button>
         </div>
       ) : (
         <form
@@ -42,10 +40,11 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
             e.preventDefault();
             setSubmitted(true);
           }}
-          style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 360, margin: "0 auto" }}
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
         >
           <Field label="Email">
-            <Input
+            <input
+              className="input"
               type="email"
               autoComplete="email"
               value={email}
@@ -54,13 +53,13 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
               required
             />
           </Field>
-          <div style={{ fontSize: 12, color: "var(--vt-label-tertiary)", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--c-ink-3)", lineHeight: 1.5 }}>
             Email delivery for resets isn't wired up yet — this is a placeholder. The reset link will go out
             once an email provider is configured in the backend.
           </div>
-          <Button type="submit" variant="primary" size="lg" block>
+          <button type="submit" className="btn-pri" style={{ width: "100%" }}>
             Send reset link
-          </Button>
+          </button>
         </form>
       )}
     </AuthShell>
@@ -76,18 +75,65 @@ interface AuthShellProps {
 
 function AuthShell({ children, title, sub, footer }: AuthShellProps) {
   return (
-    <div className="vt-screen" style={{ background: "var(--vt-bg)" }}>
-      <div className="vt-scroll" style={{ padding: "60px 24px 24px" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 32 }}>
-          <BrandMark size={48} />
-          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.022em", marginTop: 16 }}>{title}</div>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--c-bg)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          padding: "60px 24px 24px",
+          width: "100%",
+          maxWidth: 420,
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 32,
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              background: "var(--c-ink)",
+              color: "var(--c-bg)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "var(--sf-display)",
+              fontSize: 30,
+              fontStyle: "italic",
+            }}
+          >
+            T
+          </div>
+          <h1
+            className="large-title"
+            style={{ marginTop: 16, textAlign: "center", fontSize: 36 }}
+          >
+            {title}
+          </h1>
           {sub && (
             <div
               style={{
-                fontSize: 15,
-                color: "var(--vt-label-tertiary)",
+                fontSize: 14,
+                color: "var(--c-ink-3)",
                 textAlign: "center",
-                maxWidth: 280,
+                maxWidth: 320,
                 lineHeight: 1.45,
               }}
             >
@@ -103,13 +149,33 @@ function AuthShell({ children, title, sub, footer }: AuthShellProps) {
             padding: "16px 24px 28px",
             textAlign: "center",
             fontSize: 14,
-            color: "var(--vt-label-tertiary)",
+            color: "var(--c-ink-3)",
           }}
         >
           {footer}
         </div>
       )}
     </div>
+  );
+}
+
+function Field({ label, children, hint }: { label: ReactNode; children: ReactNode; hint?: ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          letterSpacing: 0.06,
+          textTransform: "uppercase",
+          color: "var(--c-ink-3)",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+      {hint && <span style={{ fontSize: 12, color: "var(--c-ink-3)" }}>{hint}</span>}
+    </label>
   );
 }
 
@@ -149,28 +215,47 @@ export function SignIn({ onSwitch, onForgot, inviteBanner }: SignInProps) {
       footer={
         <>
           New here?{" "}
-          <a onClick={onSwitch} style={{ color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>
+          <a onClick={onSwitch} style={{ color: "var(--c-accent)", fontWeight: 600, cursor: "pointer" }}>
             Create an account
           </a>
         </>
       }
     >
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 360, margin: "0 auto" }}>
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <Field label="Email">
-          <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+          <input
+            className="input"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
         </Field>
         <Field label="Password">
-          <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+          <input
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+          />
         </Field>
         <div style={{ textAlign: "right" }}>
-          <a onClick={onForgot} style={{ fontSize: 13, color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>
+          <a
+            onClick={onForgot}
+            style={{ fontSize: 13, color: "var(--c-accent)", fontWeight: 600, cursor: "pointer" }}
+          >
             Forgot password?
           </a>
         </div>
-        {error && <div style={{ fontSize: 13, color: "var(--vt-destructive)" }}>{error}</div>}
-        <Button type="submit" variant="primary" size="lg" block loading={loading}>
-          Sign in
-        </Button>
+        {error && <div style={{ fontSize: 13, color: "var(--c-accent)" }}>{error}</div>}
+        <button type="submit" className="btn-pri" style={{ width: "100%" }} disabled={loading}>
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
       </form>
     </AuthShell>
   );
@@ -212,33 +297,50 @@ export function SignUp({ onSwitch, inviteBanner }: SignUpProps) {
       footer={
         <>
           Already have an account?{" "}
-          <a onClick={onSwitch} style={{ color: "var(--vt-accent)", fontWeight: 600, cursor: "pointer" }}>
+          <a onClick={onSwitch} style={{ color: "var(--c-accent)", fontWeight: 600, cursor: "pointer" }}>
             Sign in
           </a>
         </>
       }
     >
-      <form
-        onSubmit={submit}
-        style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 360, margin: "0 auto" }}
-      >
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <Field label="Your name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Mira Castellan" required />
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Mira Castellan"
+            required
+          />
         </Field>
         <Field label="Email">
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+          <input
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
         </Field>
         <Field label="Password" hint="At least 8 characters.">
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+          />
         </Field>
-        <div style={{ fontSize: 12, color: "var(--vt-label-tertiary)", lineHeight: 1.5 }}>
-          By continuing, you agree to the <a style={{ color: "var(--vt-accent)" }}>Terms</a> and{" "}
-          <a style={{ color: "var(--vt-accent)" }}>Privacy Policy</a>.
+        <div style={{ fontSize: 12, color: "var(--c-ink-3)", lineHeight: 1.5 }}>
+          By continuing, you agree to the <a style={{ color: "var(--c-accent)" }}>Terms</a> and{" "}
+          <a style={{ color: "var(--c-accent)" }}>Privacy Policy</a>.
         </div>
-        {error && <div style={{ fontSize: 13, color: "var(--vt-destructive)" }}>{error}</div>}
-        <Button type="submit" variant="primary" size="lg" block loading={loading}>
-          Create account
-        </Button>
+        {error && <div style={{ fontSize: 13, color: "var(--c-accent)" }}>{error}</div>}
+        <button type="submit" className="btn-pri" style={{ width: "100%" }} disabled={loading}>
+          {loading ? "Creating…" : "Create account"}
+        </button>
       </form>
     </AuthShell>
   );
