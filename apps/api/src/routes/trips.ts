@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { and, asc, eq, inArray, max } from "drizzle-orm";
-import { randomBytes, randomUUID } from "node:crypto";
 import { zValidator } from "@hono/zod-validator";
+import { randomBase64Url, randomUUID } from "../random";
 import {
   createDayItemSchema,
   createDaySchema,
@@ -17,7 +17,7 @@ import {
   type TripSummary,
 } from "@visitrip/shared";
 import { schema } from "@visitrip/db";
-import { db } from "../db";
+import { db, inTransaction } from "../db";
 import { requireAuth, type Variables } from "../middleware";
 import { removeDoc } from "../realtime/docs";
 
@@ -94,7 +94,7 @@ tripsRouter.post("/", zValidator("json", createTripSchema), async (c) => {
   const input = c.req.valid("json");
   const id = randomUUID();
 
-  await db.transaction(async (tx) => {
+  await inTransaction(async (tx) => {
     await tx.insert(schema.trip).values({
       id,
       ownerId: session.user.id,
@@ -441,7 +441,7 @@ tripsRouter.post(
     if (ids.length !== currentSet.size || new Set(ids).size !== ids.length || !ids.every((id) => currentSet.has(id))) {
       return c.json({ error: "invalid_reorder" }, 400);
     }
-    await db.transaction(async (tx) => {
+    await inTransaction(async (tx) => {
       for (let i = 0; i < ids.length; i++) {
         await tx
           .update(schema.dayItem)
@@ -513,7 +513,7 @@ tripsRouter.post(
       return c.json(body, 200);
     }
 
-    const token = randomBytes(24).toString("base64url");
+    const token = randomBase64Url(24);
     await db.insert(schema.tripInvite).values({
       id: randomUUID(),
       tripId,
