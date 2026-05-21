@@ -8,14 +8,17 @@ import type {
 } from "@visitrip/shared";
 import { Icon, type IconName } from "../components/Icon";
 import { Sheet } from "../components/ui";
-import { ALL_COVERS, type CoverVariant } from "../lib/data";
 import { backendKind, defaultIconFor } from "../lib/adapters";
 import { api } from "../lib/api";
 
-const COVER_PREVIEW: CoverVariant[] = ALL_COVERS;
-function coverKindFromClass(c: CoverVariant): CoverKind {
-  return c.replace(/^cover-/, "") as CoverKind;
-}
+const COVER_PREVIEW: CoverKind[] = [
+  "cover-lisbon",
+  "cover-hokkaido",
+  "cover-cdmx",
+  "cover-coast",
+  "cover-alps",
+  "cover-desert",
+];
 
 const todayIso = () => {
   const d = new Date();
@@ -39,7 +42,7 @@ interface NewTripModalProps {
 export function NewTripModal({ open, onClose, onCreate }: NewTripModalProps) {
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
-  const [cover, setCover] = useState<CoverVariant>("cover-lisbon");
+  const [cover, setCover] = useState<CoverKind>("cover-lisbon");
   const [startDate, setStartDate] = useState(addDaysIso(todayIso(), 14));
   const [endDate, setEndDate] = useState(addDaysIso(todayIso(), 18));
   const [busy, setBusy] = useState(false);
@@ -63,7 +66,7 @@ export function NewTripModal({ open, onClose, onCreate }: NewTripModalProps) {
       await onCreate({
         title: title.trim(),
         location: location.trim(),
-        cover: coverKindFromClass(cover),
+        cover,
         startDate,
         endDate,
       });
