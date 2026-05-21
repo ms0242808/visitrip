@@ -38,7 +38,7 @@ Open-source app for organizing, sharing, and real-time collaborating on trips wi
 | Validation| Zod (shared between web and api via `@visitrip/shared`)    |
 | Auth      | better-auth (email + password)                             |
 | Real-time | Yjs over WebSocket (packing list is collaborative; awareness powers presence) |
-| Hosting   | Per-app Dockerfile + root `docker-compose.yml`             |
+| Hosting   | Cloudflare (Workers + D1 + Durable Objects, one-click) **or** Docker Compose + Postgres |
 
 ## Repo layout
 
@@ -103,6 +103,33 @@ npm run db:studio     # open Drizzle Studio
 ```
 
 Tables: `user`, `session`, `account`, `verification` (better-auth) plus `trip`, `trip_member`, `trip_invite`, `day`, `day_item`, `expense`, `packing_item`, `trip_doc`, `trip_yjs_state` (binary snapshot of the per-trip collaborative document).
+
+## Deploy to Cloudflare (one click)
+
+For a zero-server install, deploy the whole stack to Cloudflare's free tier:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/your-fork/visitrip)
+
+The button auto-provisions a D1 database, a Durable Object namespace, and the
+static asset binding from `wrangler.jsonc`. You'll be prompted for two values:
+
+- `BETTER_AUTH_SECRET` — generate with `openssl rand -base64 32`
+- `PUBLIC_URL` — your `*.workers.dev` URL or custom domain (must be set as a
+  `var` in `wrangler.jsonc` after you know it)
+
+Manual deploy:
+
+```bash
+wrangler d1 create visitrip                  # paste database_id into wrangler.jsonc
+wrangler secret put BETTER_AUTH_SECRET
+# edit wrangler.jsonc vars.PUBLIC_URL = your deployed URL
+npm run deploy:cf                            # builds web, applies D1 migrations, deploys worker
+```
+
+The Cloudflare path swaps the Postgres + Node WebSocket layer for D1 (SQLite)
+and a per-trip Durable Object that owns the collaborative document. Same
+routes, same web app, same UX. The Docker self-host path keeps working in
+parallel — pick whichever fits your appetite for ops.
 
 ## Self-hosting with Docker
 
