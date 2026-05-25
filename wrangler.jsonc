@@ -32,6 +32,6 @@
 		}
 	],
 	"vars": {
-		"PUBLIC_URL": ""
+		"PUBLIC_URL": "https://visitrip.ms0242808.workers.dev"
 	}
 }
