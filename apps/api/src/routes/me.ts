@@ -19,7 +19,7 @@ meRouter.get("/export", async (c) => {
 
   const tripIds = memberships.map((m) => m.tripId);
 
-  const [trips, days, items, expenses, packing] = tripIds.length
+  const [trips, days, expenses, packing] = tripIds.length
     ? await Promise.all([
         db.select().from(schema.trip).where(inArray(schema.trip.id, tripIds)),
         db
@@ -27,24 +27,19 @@ meRouter.get("/export", async (c) => {
           .from(schema.day)
           .where(inArray(schema.day.tripId, tripIds))
           .orderBy(asc(schema.day.tripId), asc(schema.day.position)),
-        db
-          .select()
-          .from(schema.dayItem)
-          .where(inArray(schema.dayItem.dayId, [])),
         db.select().from(schema.expense).where(inArray(schema.expense.tripId, tripIds)),
         db.select().from(schema.packingItem).where(inArray(schema.packingItem.tripId, tripIds)),
       ])
-    : [[], [], [], [], []];
+    : [[], [], [], []];
 
-  // Day items require day IDs; fetch in a second pass once we have days.
-  const dayIds = (days as Array<{ id: string }>).map((d) => d.id);
+  const dayIds = days.map((d) => d.id);
   const dayItems = dayIds.length
     ? await db
         .select()
         .from(schema.dayItem)
         .where(inArray(schema.dayItem.dayId, dayIds))
         .orderBy(asc(schema.dayItem.dayId), asc(schema.dayItem.position))
-    : items;
+    : [];
 
   return c.json({
     exportedAt: new Date().toISOString(),

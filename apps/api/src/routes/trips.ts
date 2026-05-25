@@ -17,7 +17,7 @@ import {
   type TripSummary,
 } from "@visitrip/shared";
 import { schema } from "@visitrip/db";
-import { db, inTransaction } from "../db";
+import { db, runBatch } from "../db";
 import { requireAuth, type Variables } from "../middleware";
 import { removeDoc } from "../realtime/docs";
 
@@ -94,8 +94,8 @@ tripsRouter.post("/", zValidator("json", createTripSchema), async (c) => {
   const input = c.req.valid("json");
   const id = randomUUID();
 
-  await inTransaction(async (tx) => {
-    await tx.insert(schema.trip).values({
+  await runBatch((b) => [
+    b.insert(schema.trip).values({
       id,
       ownerId: session.user.id,
       title: input.title,
@@ -109,13 +109,13 @@ tripsRouter.post("/", zValidator("json", createTripSchema), async (c) => {
       archived: false,
       isPrivate: input.isPrivate ?? true,
       vibes: input.vibes ?? [],
-    });
-    await tx.insert(schema.tripMember).values({
+    }),
+    b.insert(schema.tripMember).values({
       tripId: id,
       userId: session.user.id,
       role: "owner",
-    });
-  });
+    }),
+  ]);
 
   return c.json({ id }, 201);
 });
@@ -441,14 +441,14 @@ tripsRouter.post(
     if (ids.length !== currentSet.size || new Set(ids).size !== ids.length || !ids.every((id) => currentSet.has(id))) {
       return c.json({ error: "invalid_reorder" }, 400);
     }
-    await inTransaction(async (tx) => {
-      for (let i = 0; i < ids.length; i++) {
-        await tx
+    await runBatch((b) =>
+      ids.map((id, i) =>
+        b
           .update(schema.dayItem)
           .set({ position: i })
-          .where(and(eq(schema.dayItem.id, ids[i]!), eq(schema.dayItem.dayId, dayId)));
-      }
-    });
+          .where(and(eq(schema.dayItem.id, id), eq(schema.dayItem.dayId, dayId))),
+      ),
+    );
     return c.json({ ok: true });
   },
 );

@@ -15,11 +15,6 @@
 			"database_name": "visitrip",
 			"database_id": "fb56505b-c068-4c8d-9a9f-5f021913e4f0",
 			"migrations_dir": "packages/db/migrations-d1"
-		},
-		{
-			"binding": "visitrip",
-			"database_name": "visitrip",
-			"database_id": "fb56505b-c068-4c8d-9a9f-5f021913e4f0"
 		}
 	],
 	"durable_objects": {

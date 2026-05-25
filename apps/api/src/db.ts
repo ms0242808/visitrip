@@ -17,16 +17,25 @@ export const db = new Proxy({} as Db, {
   },
 });
 
-// D1 rejects raw BEGIN/COMMIT, so drizzle's d1 transaction throws. On
-// Postgres we still want a real transaction. This wrapper picks the right
-// path at runtime; on D1 the callback runs sequentially without atomicity,
-// which is good enough for current callsites (single-trip create, packing
-// reorder). Promote to db.batch if a future callsite needs real atomicity.
-export async function inTransaction<T>(cb: (tx: Db) => Promise<T>): Promise<T> {
+// Run a list of independent statements atomically on both drivers. On D1 we
+// dispatch to db.batch (one SQLite transaction inside the edge runtime); on
+// Postgres we wrap them in a real transaction. The build callback receives
+// whichever bound instance is appropriate so each statement executes against
+// the right session.
+export async function runBatch(build: (b: Db) => readonly unknown[]): Promise<void> {
   if (!_db) throw new Error("db accessed before setDb()");
-  const anyDb = _db as unknown as { batch?: unknown; transaction: (cb: (tx: Db) => Promise<T>) => Promise<T> };
+  const anyDb = _db as unknown as {
+    batch?: (statements: readonly unknown[]) => Promise<unknown>;
+    transaction: (cb: (tx: Db) => Promise<void>) => Promise<void>;
+  };
   if (typeof anyDb.batch === "function") {
-    return cb(db);
+    const stmts = build(_db);
+    if (stmts.length === 0) return;
+    await anyDb.batch(stmts);
+    return;
   }
-  return anyDb.transaction(cb);
+  await anyDb.transaction(async (tx) => {
+    const stmts = build(tx);
+    for (const s of stmts) await s;
+  });
 }
