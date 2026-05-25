@@ -94,7 +94,7 @@ npm run dev:api   # tsx watch on the Hono server (requires postgres + migrations
 
 ## Database
 
-Drizzle schema lives in `packages/db/src/schema.ts`. Migrations are tracked under `packages/db/migrations/`.
+Drizzle schema is split by dialect: `packages/db/src/schema-pg.ts` (Postgres, used by Node / Docker) and `packages/db/src/schema-d1.ts` (SQLite, used by Cloudflare Workers). They're kept aligned by hand. Migrations live under `packages/db/migrations/` (Postgres) and `packages/db/migrations-d1/` (D1).
 
 ```bash
 npm run db:generate   # emit a new SQL migration from a schema diff
@@ -102,7 +102,7 @@ npm run db:migrate    # apply pending migrations
 npm run db:studio     # open Drizzle Studio
 ```
 
-Tables: `user`, `session`, `account`, `verification` (better-auth) plus `trip`, `trip_member`, `trip_invite`, `day`, `day_item`, `expense`, `packing_item`, `trip_doc`, `trip_yjs_state` (binary snapshot of the per-trip collaborative document).
+Tables: `user`, `session`, `account`, `verification` (better-auth) plus `trip`, `trip_member`, `trip_invite`, `day`, `day_item`, `expense`, `packing_item`, `trip_doc`. The per-trip Yjs snapshot lives in `trip_yjs_state` on Postgres; on D1 the per-trip Durable Object owns the snapshot in its own storage instead.
 
 ## Deploy to Cloudflare (one click)
 

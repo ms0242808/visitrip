@@ -11,7 +11,7 @@ Visitrip is an open-source web app for organizing, sharing, and real-time collab
 - **Monorepo:** npm workspaces (no pnpm, no yarn, no Turborepo unless explicitly requested)
 - **Web:** React 19 + Vite 6 + TypeScript + Tailwind CSS v4 + vite-plugin-pwa
 - **API:** Node 20 + Hono on `@hono/node-server`; `tsx` for dev, `tsup` for production bundle
-- **DB:** PostgreSQL + Drizzle ORM (postgres-js driver)
+- **DB:** Drizzle ORM, dual-dialect from `@visitrip/db` — Postgres (postgres-js) on Node, D1 (drizzle-orm/d1) on Cloudflare Workers via the `workerd` conditional export. Schema is split across `packages/db/src/schema-pg.ts` and `schema-d1.ts`; keep them aligned by hand.
 - **Validation:** Zod, defined once in `packages/shared`, consumed by both web and api
 - **Auth:** better-auth, email + password only (no OAuth providers at launch)
 - **Real-time:** Yjs over WebSocket (packing list is collaborative, awareness drives presence; other panels follow the same pattern when migrated)
@@ -129,6 +129,14 @@ In docker-compose the web container's nginx proxies `/api/*` to the api
 service so the better-auth session cookie stays same-origin in production —
 matching the Vite proxy in dev.
 
+Password hashing is overridden to PBKDF2-SHA256 (100k iterations, 16-byte
+salt) via `crypto.subtle.deriveBits`, not better-auth's default scrypt.
+Reason: scrypt is pure-JS and busts the Workers free-plan 10 ms per-request
+CPU cap on sign-up / sign-in (error 1102). PBKDF2 via WebCrypto is native
+in both workerd and Node 20+ and runs in ~1 ms. Hashes are stored as
+`pbkdf2$<iters>$<salt>$<hash>` so the iteration count can change later
+without invalidating existing rows.
+
 ## Real-time
 
 A Yjs WebSocket server lives in `apps/api/src/realtime/`:
@@ -158,6 +166,14 @@ on the trip doc, hydrate from Postgres in `docs.ts`'s `hydrate()` when no
 snapshot exists, and read/write from the React component via `useYArray`
 (or a Y.Map equivalent).
 
+On Cloudflare the realtime layer is a per-trip Durable Object instead
+(`apps/api/src/realtime/do.ts`, class `TripDoc`). The worker entrypoint
+(`apps/api/src/worker.ts`) authorizes the WebSocket upgrade against
+`trip_member`, then forwards to `env.TRIP_DO.get(idFromName(tripId)).fetch(req)`.
+The DO owns the Y.Doc and persists snapshots to its own DO storage — there
+is no `trip_yjs_state` table on D1. First-time seeds still read
+`packing_item` directly from D1.
+
 ## Data flow
 
 All shared types live in `@visitrip/shared` (Zod schemas, `z.infer<>`'d into
@@ -165,6 +181,13 @@ TypeScript). The web never imports from `@visitrip/db` — it only sees the API
 shapes. New write endpoints belong in `apps/api/src/routes/`, behind the
 `requireAuth` middleware, validated with `@hono/zod-validator` against a Zod
 schema from shared.
+
+Mutations that need to be atomic (two+ writes that must succeed together)
+go through `runBatch(b => [...])` in `apps/api/src/db.ts`, not
+`db.transaction(...)`. On D1 this dispatches to `db.batch` (a real SQLite
+transaction inside workerd); on Postgres it falls back to a real
+transaction. Drizzle's `transaction()` throws on D1 because the runtime
+rejects `BEGIN`/`COMMIT`.
 
 Current routes (all under `/api`, member-gated unless noted):
 
