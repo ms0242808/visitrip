@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Trip } from "@/lib/types";
+import { coverGradient } from "@/lib/types";
 import { dayCount, formatRange } from "@/lib/dates";
 import { CalendarIcon, CompassIcon, MapPinIcon, WalletIcon } from "./Icons";
 import StatPill from "./StatPill";
@@ -21,10 +22,21 @@ export default function TripHeader({ trip, onUpdate }: Props) {
   const over = budget > 0 && spent > budget;
 
   return (
-    <header className="relative overflow-hidden rounded-b-[2rem] border-b border-border bg-gradient-to-br from-brand-soft/70 via-surface to-accent-soft/50 px-5 pt-6 pb-7 sm:rounded-b-[2.5rem] sm:px-8 sm:pt-8">
-      <div className="mx-auto max-w-5xl">
+    <header className="relative overflow-hidden rounded-b-[2rem] border-b border-border bg-surface px-5 pt-6 pb-7 sm:rounded-b-[2.5rem] sm:px-8 sm:pt-8">
+      {/* cover wash tied to the trip's identity */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-44 opacity-25"
+        style={{ background: coverGradient(trip.cover) }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-transparent to-surface"
+        aria-hidden
+      />
+      <div className="relative mx-auto max-w-5xl">
         {/* destination tag */}
         <div className="flex items-center gap-2 text-sm font-semibold text-brand-strong">
+          <span className="text-lg leading-none">{trip.emoji}</span>
           <MapPinIcon width={16} height={16} />
           <input
             className="w-full max-w-[16rem] bg-transparent outline-none placeholder:text-brand-strong/50 focus:underline"

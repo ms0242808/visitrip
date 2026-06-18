@@ -5,6 +5,12 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
 
 ## Features
 
+- **A library of trips** — plan as many trips as you like. Each is a creative
+  *boarding-pass* card (cover gradient, emoji, live countdown, status) you can
+  open, duplicate, rename or delete. **Search**, **sort** (recent / date / name)
+  and auto-grouping into *Upcoming & current* vs *Past trips* keep them organised.
+- **Create trips your way** — a new-trip sheet with a live cover preview, emoji
+  picker, gradient covers and currency.
 - **Day-by-day timeline** — every plan sits on a vertical timeline with a
   colour-coded category node (sights, food, activity, transit, stay, shopping).
 - **Editable trip header** — rename the trip, set the destination and date range
@@ -45,7 +51,9 @@ npm run deploy   # build + deploy to Cloudflare
 ```
 src/
   app/            # layout, page, global design system (globals.css)
-  components/     # TripPlanner, TripHeader, DayRail, DayTimeline,
-                  # ActivityCard, ActivitySheet, Landing, Icons, …
-  lib/            # types, date helpers, sample data, localStorage store
+  components/     # AppShell, TripsDashboard, TripCard, NewTripModal,
+                  # PlannerView, TripHeader, DayRail, DayTimeline,
+                  # ActivityCard, ActivitySheet, ConfirmDialog, Landing, …
+  lib/            # types, date helpers, trip stats, sample data,
+                  # multi-trip localStorage store (useTrips)
 ```

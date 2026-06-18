@@ -1,5 +1,5 @@
-import TripPlanner from "@/components/TripPlanner";
+import AppShell from "@/components/AppShell";
 
 export default function Home() {
-  return <TripPlanner />;
+  return <AppShell />;
 }

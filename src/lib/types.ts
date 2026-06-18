@@ -37,7 +37,42 @@ export interface Trip {
   currency: string; // symbol, e.g. "$"
   budget?: number;
   activities: Activity[];
+  /** index into COVERS for the trip's cover gradient */
+  cover: number;
+  emoji: string;
+  createdAt: number;
+  updatedAt: number;
 }
+
+/** Cover gradient presets — pick one per trip for a distinct identity. */
+export interface Cover {
+  name: string;
+  from: string;
+  to: string;
+}
+
+export const COVERS: Cover[] = [
+  { name: "Coral", from: "#ff7a59", to: "#ff5e7e" },
+  { name: "Sunset", from: "#ff9966", to: "#ff5e62" },
+  { name: "Ocean", from: "#2193b0", to: "#6dd5ed" },
+  { name: "Lagoon", from: "#11998e", to: "#38ef7d" },
+  { name: "Twilight", from: "#7367f0", to: "#ce9ffc" },
+  { name: "Berry", from: "#c471ed", to: "#f64f59" },
+  { name: "Citrus", from: "#f7971e", to: "#ffd200" },
+  { name: "Indigo", from: "#4e54c8", to: "#8f94fb" },
+];
+
+export function coverGradient(i: number): string {
+  const c = COVERS[((i % COVERS.length) + COVERS.length) % COVERS.length];
+  return `linear-gradient(135deg, ${c.from}, ${c.to})`;
+}
+
+export const TRIP_EMOJIS = [
+  "✈️", "🏝️", "🏔️", "🏙️", "🗺️", "🎒",
+  "⛩️", "🗽", "🌋", "🐠", "🍷", "🚗",
+];
+
+export const CURRENCIES = ["$", "€", "£", "¥", "₹", "A$"];
 
 export const CATEGORIES: Category[] = [
   { id: "sightseeing", label: "Sights", colorVar: "--c-sight", emoji: "🏛️" },

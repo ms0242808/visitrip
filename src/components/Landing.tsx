@@ -122,7 +122,7 @@ export default function Landing({ onCreate, onLoadSample }: Props) {
         className="btn btn-ghost mt-6 px-4 py-2 text-sm"
         style={{ animation: "var(--animate-fade-up)", animationDelay: "160ms" }}
       >
-        <CompassIcon width={17} height={17} /> Or explore a ready-made Kyoto trip
+        <CompassIcon width={17} height={17} /> Or explore three ready-made sample trips
       </button>
 
       <div
