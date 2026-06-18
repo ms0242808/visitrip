@@ -18,7 +18,7 @@ export default function StatPill({ icon, label, value, prefix = "", decimals = 0
   });
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-surface/70 px-4 py-3 backdrop-blur-sm">
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)]">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong">
         {icon}
       </span>
