@@ -19,6 +19,8 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   estimated spend adds up, with an over-budget warning.
 - **Add / edit plans** — a polished sheet (bottom-sheet on mobile, modal on
   desktop) with category chips, time, cost, location and notes.
+- **Reschedule between days** — a day picker in the plan sheet moves any plan to
+  another day; the planner follows it so you see where it landed.
 - **Animated stats** — count-up day / plan / spend totals.
 - **Light & dark mode** — respects the system preference and remembers your
   choice, applied before first paint (no flash).

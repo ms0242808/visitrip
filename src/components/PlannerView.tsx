@@ -61,6 +61,8 @@ export default function PlannerView({
   const saveActivity = (data: Omit<Activity, "id">, id?: string) => {
     if (id) onUpdateActivity(id, data);
     else onAddActivity(data);
+    // follow the plan to whichever day it landed on
+    if (data.date !== selectedDay) setSelectedDay(data.date);
     setSheet(null);
   };
 
@@ -116,6 +118,7 @@ export default function PlannerView({
         <ActivitySheet
           state={sheet}
           currency={trip.currency}
+          days={days}
           onClose={() => setSheet(null)}
           onSave={saveActivity}
         />

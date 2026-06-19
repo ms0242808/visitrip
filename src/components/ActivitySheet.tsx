@@ -15,12 +15,15 @@ export interface SheetState {
 interface Props {
   state: SheetState;
   currency: string;
+  /** all days in the trip, so a plan can be moved between them */
+  days: string[];
   onClose: () => void;
   onSave: (data: Omit<Activity, "id">, id?: string) => void;
 }
 
-export default function ActivitySheet({ state, currency, onClose, onSave }: Props) {
+export default function ActivitySheet({ state, currency, days, onClose, onSave }: Props) {
   const editing = state.activity;
+  const [date, setDate] = useState(editing?.date ?? state.date);
   const [title, setTitle] = useState(editing?.title ?? "");
   const [category, setCategory] = useState<CategoryId>(editing?.category ?? "sightseeing");
   const [time, setTime] = useState(editing?.time ?? "");
@@ -46,7 +49,7 @@ export default function ActivitySheet({ state, currency, onClose, onSave }: Prop
     if (!title.trim()) return;
     onSave(
       {
-        date: state.date,
+        date,
         title: title.trim(),
         category,
         time: time || undefined,
@@ -123,6 +126,39 @@ export default function ActivitySheet({ state, currency, onClose, onSave }: Prop
             );
           })}
         </div>
+
+        {/* day selector — schedule or move the plan between trip days */}
+        {days.length > 1 && (
+          <div className="mt-4">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-faint">
+              Day
+            </span>
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+              {days.map((d, i) => {
+                const f = formatDay(d);
+                const active = d === date;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDate(d)}
+                    className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-1.5 transition-all ${
+                      active
+                        ? "border-brand bg-brand-soft text-brand-strong"
+                        : "border-border text-text-soft hover:border-text-faint"
+                    }`}
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                      Day {i + 1}
+                    </span>
+                    <span className="text-sm font-bold leading-tight">{f.day}</span>
+                    <span className="text-[10px] opacity-70">{f.weekday}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <label className="mt-4 block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-faint">
