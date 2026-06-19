@@ -59,6 +59,17 @@ export function formatRange(startISO: string, endISO: string): string {
   return `${sMonth} ${s.getDate()} – ${eMonth} ${e.getDate()}, ${e.getFullYear()}`;
 }
 
+/** True when the ISO date is the local "today". */
+export function isToday(iso: string): boolean {
+  return iso === toISODate(new Date());
+}
+
+/** Current local time as "HH:MM" (24h). */
+export function nowHM(): string {
+  const d = new Date();
+  return `${`${d.getHours()}`.padStart(2, "0")}:${`${d.getMinutes()}`.padStart(2, "0")}`;
+}
+
 export function prettyTime(time?: string): string {
   if (!time) return "";
   const [hStr, m] = time.split(":");

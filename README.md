@@ -20,6 +20,9 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   colour-coded category node (sights, food, activity, transit, stay, shopping).
 - **Itinerary / Overview** — a segmented toggle switches between the focused
   day-by-day view and a whole-trip agenda; tap any day to jump straight to it.
+- **Built for the road** — while you’re travelling, the planner opens straight
+  to **today**, the day rail marks *Today*, and a live **“Now”** line plus an
+  **“Up next”** badge show exactly what’s happening and what’s coming.
 - **Editable trip header** — rename the trip, set the destination and date range
   inline; the day rail rebuilds itself automatically.
 - **Restyle anytime** — tap the trip’s emoji to open a Customise sheet and change

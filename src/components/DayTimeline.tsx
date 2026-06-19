@@ -1,14 +1,30 @@
 "use client";
 
+import { Fragment } from "react";
 import type { Activity } from "@/lib/types";
+import { nowHM, prettyTime } from "@/lib/dates";
 import ActivityCard from "./ActivityCard";
 import { CompassIcon, PlusIcon } from "./Icons";
+
+function NowLine({ time }: { time: string }) {
+  return (
+    <li className="relative my-0.5 flex items-center gap-2 pl-12 sm:pl-16" aria-label="Current time">
+      <span className="absolute left-[14px] top-1/2 z-10 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand ring-4 ring-brand-soft sm:left-[22px]" />
+      <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
+        Now · {prettyTime(time)}
+      </span>
+      <span className="h-px flex-1 bg-brand/40" />
+    </li>
+  );
+}
 
 interface Props {
   activities: Activity[];
   currency: string;
   dayLabel: string;
   readOnly?: boolean;
+  /** the selected day is the real-world "today" */
+  isToday?: boolean;
   onAdd: () => void;
   onEdit: (a: Activity) => void;
   onDelete: (id: string) => void;
@@ -20,6 +36,7 @@ export default function DayTimeline({
   currency,
   dayLabel,
   readOnly = false,
+  isToday = false,
   onAdd,
   onEdit,
   onDelete,
@@ -34,6 +51,21 @@ export default function DayTimeline({
   });
 
   const dayTotal = sorted.reduce((s, a) => s + (a.cost || 0), 0);
+
+  // "now" orientation for today: find the next upcoming timed plan
+  const now = nowHM();
+  const upNextIdx = isToday ? sorted.findIndex((a) => a.time && a.time >= now) : -1;
+  // place the now-line just before the next upcoming plan, or after the last
+  // timed plan if everything today is already done
+  const lastTimedIdx = (() => {
+    let idx = -1;
+    sorted.forEach((a, i) => {
+      if (a.time) idx = i;
+    });
+    return idx;
+  })();
+  const nowLineIdx = isToday ? (upNextIdx >= 0 ? upNextIdx : lastTimedIdx + 1) : -1;
+  const upNextId = upNextIdx >= 0 ? sorted[upNextIdx].id : null;
 
   return (
     <section className="mt-6">
@@ -91,17 +123,21 @@ export default function DayTimeline({
           />
           <ul className="flex flex-col gap-3">
             {sorted.map((a, i) => (
-              <ActivityCard
-                key={a.id}
-                activity={a}
-                currency={currency}
-                index={i}
-                readOnly={readOnly}
-                onEdit={() => onEdit(a)}
-                onDelete={() => onDelete(a.id)}
-                onToggleDone={() => onToggleDone(a.id)}
-              />
+              <Fragment key={a.id}>
+                {i === nowLineIdx && <NowLine time={now} />}
+                <ActivityCard
+                  activity={a}
+                  currency={currency}
+                  index={i}
+                  readOnly={readOnly}
+                  upNext={a.id === upNextId}
+                  onEdit={() => onEdit(a)}
+                  onDelete={() => onDelete(a.id)}
+                  onToggleDone={() => onToggleDone(a.id)}
+                />
+              </Fragment>
             ))}
+            {nowLineIdx === sorted.length && <NowLine time={now} />}
           </ul>
         </div>
       )}

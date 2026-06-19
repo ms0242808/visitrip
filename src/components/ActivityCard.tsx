@@ -10,6 +10,7 @@ interface Props {
   currency: string;
   index: number;
   readOnly?: boolean;
+  upNext?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggleDone: () => void;
@@ -20,6 +21,7 @@ export default function ActivityCard({
   currency,
   index,
   readOnly = false,
+  upNext = false,
   onEdit,
   onDelete,
   onToggleDone,
@@ -45,6 +47,7 @@ export default function ActivityCard({
         className={[
           "card relative overflow-hidden p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]",
           activity.done ? "opacity-60" : "",
+          upNext ? "!border-brand/60 shadow-[0_0_0_3px_var(--brand-soft)]" : "",
         ].join(" ")}
       >
         {/* colour spine */}
@@ -68,6 +71,12 @@ export default function ActivityCard({
               >
                 {cat.label}
               </span>
+              {upNext && (
+                <span className="flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                  Up next
+                </span>
+              )}
             </div>
             <h4
               className={[

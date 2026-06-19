@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Activity, Collaborator, Trip } from "@/lib/types";
-import { dateRange, formatDay } from "@/lib/dates";
+import { dateRange, formatDay, toISODate } from "@/lib/dates";
 import TopBar from "./TopBar";
 import TripHeader from "./TripHeader";
 import DayRail from "./DayRail";
@@ -51,7 +51,11 @@ export default function PlannerView({
 
   useEffect(() => {
     if (days.length === 0) return;
-    if (!days.includes(selectedDay)) setSelectedDay(days[0]);
+    if (!days.includes(selectedDay)) {
+      // during the trip, open straight to today; otherwise the first day
+      const today = toISODate(new Date());
+      setSelectedDay(days.includes(today) ? today : days[0]);
+    }
   }, [days, selectedDay]);
 
   const counts = useMemo(() => {
@@ -68,9 +72,11 @@ export default function PlannerView({
   );
 
   const selectedLabel = (() => {
+    const iso = selectedDay || days[0] || "";
     const idx = days.indexOf(selectedDay);
-    const { weekday, day, month } = formatDay(selectedDay || days[0] || "");
-    return `Day ${idx + 1} · ${weekday}, ${month} ${day}`;
+    const { weekday, day, month } = formatDay(iso);
+    const prefix = iso === toISODate(new Date()) ? "Today" : `Day ${idx + 1}`;
+    return `${prefix} · ${weekday}, ${month} ${day}`;
   })();
 
   const saveActivity = (data: Omit<Activity, "id">, id?: string) => {
@@ -193,6 +199,7 @@ export default function PlannerView({
               currency={trip.currency}
               dayLabel={selectedLabel}
               readOnly={readOnly}
+              isToday={(selectedDay || days[0]) === toISODate(new Date())}
               onAdd={() => setSheet({ date: selectedDay || days[0] })}
               onEdit={(a) => setSheet({ date: a.date, activity: a })}
               onDelete={onRemoveActivity}
