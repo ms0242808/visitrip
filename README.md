@@ -29,8 +29,8 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   inline; the day rail rebuilds itself automatically.
 - **Restyle anytime** — tap the trip’s emoji to open a Customise sheet and change
   its icon and cover gradient whenever you like (live preview).
-- **Budget tracking** — set a budget and watch an animated bar fill as your
-  estimated spend adds up, with an over-budget warning.
+- **Budget tracking** — set a budget and watch a glanceable progress **ring**
+  fill as your estimated spend adds up, turning red when you go over.
 - **Add / edit plans** — a polished sheet (bottom-sheet on mobile, modal on
   desktop) with category chips, time, cost, location and notes.
 - **Reschedule between days** — a day picker in the plan sheet moves any plan to

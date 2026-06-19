@@ -4,8 +4,9 @@ import { useState } from "react";
 import type { Trip } from "@/lib/types";
 import { coverGradient } from "@/lib/types";
 import { dayCount, formatRange } from "@/lib/dates";
-import { CalendarIcon, CompassIcon, MapPinIcon, WalletIcon } from "./Icons";
+import { CalendarIcon, CompassIcon, MapPinIcon } from "./Icons";
 import StatPill from "./StatPill";
+import BudgetRing from "./BudgetRing";
 import TripCustomizeSheet from "./TripCustomizeSheet";
 
 interface Props {
@@ -21,8 +22,6 @@ export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) 
   const days = dayCount(trip.startDate, trip.endDate);
   const spent = trip.activities.reduce((sum, a) => sum + (a.cost || 0), 0);
   const budget = trip.budget ?? 0;
-  const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
-  const over = budget > 0 && spent > budget;
 
   return (
     <header className="relative overflow-hidden rounded-b-[2rem] border-b border-border bg-surface px-5 pt-6 pb-7 sm:rounded-b-[2.5rem] sm:px-8 sm:pt-8">
@@ -36,7 +35,8 @@ export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) 
         className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-transparent to-surface"
         aria-hidden
       />
-      <div className="relative mx-auto max-w-5xl">
+      <div className="relative mx-auto flex max-w-5xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 flex-1">
         {/* destination tag */}
         <div className="flex items-center gap-2 text-sm font-semibold text-brand-strong">
           {readOnly ? (
@@ -117,60 +117,27 @@ export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) 
         <div className="mt-5 flex flex-wrap gap-3">
           <StatPill icon={<CalendarIcon width={18} height={18} />} label={days === 1 ? "day" : "days"} value={days} />
           <StatPill icon={<CompassIcon width={18} height={18} />} label="plans" value={trip.activities.length} />
-          <StatPill
-            icon={<WalletIcon width={18} height={18} />}
-            label="estimated spend"
-            value={spent}
-            prefix={trip.currency}
-          />
+        </div>
         </div>
 
-        {/* budget bar */}
-        <div className="mt-4 max-w-md">
-          <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
-            <span className="text-text-faint">Budget</span>
-            <span className={over ? "font-semibold text-lodging" : "text-text-soft"}>
-              {trip.currency}
-              {spent.toLocaleString()}{" "}
-              <span className="text-text-faint">
-                / {budget > 0 ? `${trip.currency}${budget.toLocaleString()}` : "set a budget"}
-              </span>
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface/80">
-            <div
-              className="h-full rounded-full transition-[width] duration-700 ease-out"
-              style={{
-                width: `${budget > 0 ? pct : 0}%`,
-                background: over
-                  ? "var(--c-lodging)"
-                  : "linear-gradient(90deg, var(--accent), var(--brand))",
-              }}
-            />
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            {!readOnly && (
-              <>
-                <span className="text-xs text-text-faint">Set budget:</span>
-                <input
-                  type="number"
-                  min={0}
-                  className="field !w-28 !py-1 text-sm"
-                  placeholder="0"
-                  value={trip.budget ?? ""}
-                  onChange={(e) =>
-                    onUpdate({ budget: e.target.value ? Number(e.target.value) : undefined })
-                  }
-                />
-              </>
-            )}
-            {over && (
-              <span className="text-xs font-semibold text-lodging">
-                {trip.currency}
-                {(spent - budget).toLocaleString()} over
-              </span>
-            )}
-          </div>
+        {/* budget ring */}
+        <div className="flex shrink-0 flex-col items-center gap-2.5 self-center sm:self-end">
+          <BudgetRing spent={spent} budget={budget} currency={trip.currency} />
+          {!readOnly && (
+            <label className="flex items-center gap-2 text-xs font-medium text-text-faint">
+              <span>Budget {trip.currency}</span>
+              <input
+                type="number"
+                min={0}
+                className="field !w-24 !py-1 text-sm"
+                placeholder="Set"
+                value={trip.budget ?? ""}
+                onChange={(e) =>
+                  onUpdate({ budget: e.target.value ? Number(e.target.value) : undefined })
+                }
+              />
+            </label>
+          )}
         </div>
       </div>
 

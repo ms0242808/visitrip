@@ -49,11 +49,12 @@ export default function TripCard({ trip, index, onOpen, onDuplicate, onDelete }:
       >
         {/* cover */}
         <div
-          className="relative h-28 w-full overflow-hidden"
+          className="relative h-32 w-full overflow-hidden"
           style={{ background: coverGradient(trip.cover) }}
         >
           <div className="absolute inset-0 opacity-30 mix-blend-soft-light [background:radial-gradient(circle_at_20%_20%,#fff,transparent_40%)]" />
-          <span className="absolute left-4 top-3 text-4xl drop-shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/15 to-transparent" />
+          <span className="absolute left-4 top-3.5 text-[2.75rem] leading-none drop-shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
             {trip.emoji}
           </span>
           <span
