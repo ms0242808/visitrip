@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTrips } from "@/lib/useTrips";
 import { buildSampleTrips } from "@/lib/sample";
+import { addDays, toISODate } from "@/lib/dates";
 import { type InvitePayload, clearJoinToken, decodeInvite, readJoinToken } from "@/lib/share";
 import Landing from "./Landing";
 import TripsDashboard from "./TripsDashboard";
@@ -97,7 +98,13 @@ export default function AppShell() {
       <>
         <Landing
           onCreate={(name, destination) => {
-            const id = store.createTrip({ name, destination });
+            const start = toISODate(new Date());
+            const id = store.createTrip({
+              name,
+              destination,
+              startDate: start,
+              endDate: addDays(start, 2),
+            });
             store.openTrip(id);
           }}
           onLoadSample={() => store.importTrips(buildSampleTrips())}

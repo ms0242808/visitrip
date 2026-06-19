@@ -40,8 +40,8 @@ export default function ActivityCard({
     >
       {/* timeline node */}
       <span
-        className="absolute left-[14px] top-5 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-[3px] border-bg text-sm sm:left-[22px]"
-        style={{ background: color }}
+        className="absolute left-[14px] top-5 z-10 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full border-[3px] border-bg text-sm transition-transform duration-200 group-hover:scale-110 sm:left-[22px]"
+        style={{ background: color, boxShadow: `0 4px 10px -2px color-mix(in srgb, ${color} 55%, transparent)` }}
         aria-hidden
       >
         <span className="text-[11px]">{cat.emoji}</span>
@@ -53,6 +53,7 @@ export default function ActivityCard({
           activity.done ? "opacity-60" : "",
           upNext ? "!border-brand/60 shadow-[0_0_0_3px_var(--brand-soft)]" : "",
         ].join(" ")}
+        style={{ background: `color-mix(in srgb, ${color} 5%, var(--surface))` }}
       >
         {/* colour spine */}
         <span

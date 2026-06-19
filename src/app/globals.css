@@ -234,6 +234,16 @@ body {
   }
 }
 
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(-2deg);
+  }
+}
+
 /* ----------------------------------------------------------------------- */
 /*  Reusable component classes                                              */
 /* ----------------------------------------------------------------------- */

@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import type { Activity } from "@/lib/types";
 import { nowHM, prettyTime } from "@/lib/dates";
 import ActivityCard from "./ActivityCard";
-import { CompassIcon, PlusIcon } from "./Icons";
+import { PlusIcon } from "./Icons";
 
 function NowLine({ time }: { time: string }) {
   return (
@@ -97,11 +97,14 @@ export default function DayTimeline({
 
       {sorted.length === 0 ? (
         <div className="card flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
-            <CompassIcon />
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] text-3xl shadow-[var(--shadow-sm)]"
+            style={{ background: "linear-gradient(135deg, var(--brand-soft), var(--accent-soft))" }}
+          >
+            {readOnly ? "🗓️" : "🗺️"}
           </div>
           <div>
-            <p className="font-semibold">
+            <p className="font-display text-lg font-bold">
               {readOnly ? "Nothing planned this day" : "This day is a blank canvas"}
             </p>
             {!readOnly && (
@@ -111,7 +114,7 @@ export default function DayTimeline({
             )}
           </div>
           {!readOnly && (
-            <button onClick={onAdd} className="btn btn-outline mt-1 px-4 py-2 text-sm">
+            <button onClick={onAdd} className="btn btn-primary mt-1 px-4 py-2 text-sm">
               <PlusIcon width={16} height={16} /> Add the first plan
             </button>
           )}
