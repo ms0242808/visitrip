@@ -18,6 +18,8 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   (avatar stack, “Shared by …” banner, no editing controls).
 - **Day-by-day timeline** — every plan sits on a vertical timeline with a
   colour-coded category node (sights, food, activity, transit, stay, shopping).
+- **Itinerary / Overview** — a segmented toggle switches between the focused
+  day-by-day view and a whole-trip agenda; tap any day to jump straight to it.
 - **Editable trip header** — rename the trip, set the destination and date range
   inline; the day rail rebuilds itself automatically.
 - **Budget tracking** — set a budget and watch an animated bar fill as your

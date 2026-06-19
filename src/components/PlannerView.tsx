@@ -9,6 +9,7 @@ import DayRail from "./DayRail";
 import DayTimeline from "./DayTimeline";
 import ActivitySheet, { type SheetState } from "./ActivitySheet";
 import ShareModal, { avatarColor, initials } from "./ShareModal";
+import TripOverview from "./TripOverview";
 import { PlusIcon } from "./Icons";
 
 interface Props {
@@ -43,6 +44,7 @@ export default function PlannerView({
   const [selectedDay, setSelectedDay] = useState("");
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [showShare, setShowShare] = useState(false);
+  const [view, setView] = useState<"itinerary" | "overview">("itinerary");
 
   const readOnly = trip.role === "viewer";
   const days = useMemo(() => dateRange(trip.startDate, trip.endDate), [trip.startDate, trip.endDate]);
@@ -152,24 +154,64 @@ export default function PlannerView({
       <TripHeader trip={trip} onUpdate={onUpdateTrip} readOnly={readOnly} />
 
       <div className="mx-auto max-w-5xl px-5 pt-6 sm:px-8">
-        <DayRail
-          days={days}
-          selected={selectedDay || days[0] || ""}
-          counts={counts}
-          onSelect={setSelectedDay}
-        />
+        {/* view switcher */}
+        <div className="flex justify-center sm:justify-start">
+          <div className="segmented" role="tablist" aria-label="Planner view">
+            <button
+              role="tab"
+              aria-selected={view === "itinerary"}
+              onClick={() => setView("itinerary")}
+              className={`segmented-item ${view === "itinerary" ? "is-active" : ""}`}
+            >
+              Itinerary
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === "overview"}
+              onClick={() => setView("overview")}
+              className={`segmented-item ${view === "overview" ? "is-active" : ""}`}
+            >
+              Overview
+            </button>
+          </div>
+        </div>
 
-        <DayTimeline
-          key={selectedDay}
-          activities={dayActivities}
-          currency={trip.currency}
-          dayLabel={selectedLabel}
-          readOnly={readOnly}
-          onAdd={() => setSheet({ date: selectedDay || days[0] })}
-          onEdit={(a) => setSheet({ date: a.date, activity: a })}
-          onDelete={onRemoveActivity}
-          onToggleDone={onToggleDone}
-        />
+        {view === "itinerary" ? (
+          <>
+            <div className="mt-5">
+              <DayRail
+                days={days}
+                selected={selectedDay || days[0] || ""}
+                counts={counts}
+                onSelect={setSelectedDay}
+              />
+            </div>
+
+            <DayTimeline
+              key={selectedDay}
+              activities={dayActivities}
+              currency={trip.currency}
+              dayLabel={selectedLabel}
+              readOnly={readOnly}
+              onAdd={() => setSheet({ date: selectedDay || days[0] })}
+              onEdit={(a) => setSheet({ date: a.date, activity: a })}
+              onDelete={onRemoveActivity}
+              onToggleDone={onToggleDone}
+            />
+          </>
+        ) : (
+          <TripOverview
+            days={days}
+            activities={trip.activities}
+            currency={trip.currency}
+            readOnly={readOnly}
+            onJumpToDay={(date) => {
+              setSelectedDay(date);
+              setView("itinerary");
+            }}
+            onEdit={(a) => setSheet({ date: a.date, activity: a })}
+          />
+        )}
       </div>
 
       {!readOnly && (
