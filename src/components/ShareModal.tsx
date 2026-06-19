@@ -129,14 +129,13 @@ export default function ShareModal({
         <div className="mt-4 rounded-2xl border border-border bg-surface-2 p-3.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">Invite link</span>
-            <div className="flex rounded-full bg-surface p-0.5 text-xs font-semibold shadow-[var(--shadow-sm)]">
+            <div className="segmented">
               {(["editor", "viewer"] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setLinkRole(r)}
-                  className={`rounded-full px-3 py-1 transition-colors ${
-                    linkRole === r ? "bg-brand text-white" : "text-text-soft"
-                  }`}
+                  aria-pressed={linkRole === r}
+                  className={`segmented-item ${linkRole === r ? "is-active" : ""}`}
                 >
                   {r === "editor" ? "Can edit" : "View only"}
                 </button>

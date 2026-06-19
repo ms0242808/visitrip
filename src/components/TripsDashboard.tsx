@@ -127,14 +127,13 @@ export default function TripsDashboard({ trips, onOpen, onNew, onDuplicate, onDe
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+          <div className="segmented no-scrollbar max-w-full overflow-x-auto">
             {SORTS.map((s) => (
               <button
                 key={s.key}
                 onClick={() => setSort(s.key)}
-                className={`chip shrink-0 ${
-                  sort === s.key ? "!border-brand !bg-brand-soft !text-brand-strong" : ""
-                }`}
+                aria-pressed={sort === s.key}
+                className={`segmented-item shrink-0 ${sort === s.key ? "is-active" : ""}`}
               >
                 {s.label}
               </button>

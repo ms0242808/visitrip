@@ -33,6 +33,10 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   when you come back. Load the ready-made *Kyoto in Autumn* sample to explore.
 - **Accessible & responsive** — keyboard focus rings, `prefers-reduced-motion`
   support, and layouts tuned for mobile, tablet and desktop.
+- **Apple-inspired design language** — the San Francisco system font stack, iOS
+  grouped backgrounds and separators, translucent “material” nav bars, segmented
+  controls, sheets with grabbers, and spring press feedback, following Apple’s
+  Human Interface Guidelines.
 
 ## Tech
 

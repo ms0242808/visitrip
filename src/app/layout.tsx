@@ -1,19 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Sora } from "next/font/google";
 import "./globals.css";
-
-const sans = Plus_Jakarta_Sans({
-  variable: "--font-sans-app",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const display = Sora({
-  variable: "--font-display-app",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Visitrip — plan trips you’ll actually take",
@@ -45,7 +31,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${sans.variable} ${display.variable} antialiased`}>
+      <body className="antialiased">
         <div className="mesh" aria-hidden />
         {children}
       </body>
