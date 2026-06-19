@@ -22,6 +22,8 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   day-by-day view and a whole-trip agenda; tap any day to jump straight to it.
 - **Editable trip header** — rename the trip, set the destination and date range
   inline; the day rail rebuilds itself automatically.
+- **Restyle anytime** — tap the trip’s emoji to open a Customise sheet and change
+  its icon and cover gradient whenever you like (live preview).
 - **Budget tracking** — set a budget and watch an animated bar fill as your
   estimated spend adds up, with an over-budget warning.
 - **Add / edit plans** — a polished sheet (bottom-sheet on mobile, modal on

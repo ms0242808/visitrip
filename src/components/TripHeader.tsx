@@ -6,6 +6,7 @@ import { coverGradient } from "@/lib/types";
 import { dayCount, formatRange } from "@/lib/dates";
 import { CalendarIcon, CompassIcon, MapPinIcon, WalletIcon } from "./Icons";
 import StatPill from "./StatPill";
+import TripCustomizeSheet from "./TripCustomizeSheet";
 
 interface Props {
   trip: Trip;
@@ -15,6 +16,7 @@ interface Props {
 
 export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) {
   const [editingDates, setEditingDates] = useState(false);
+  const [customizing, setCustomizing] = useState(false);
 
   const days = dayCount(trip.startDate, trip.endDate);
   const spent = trip.activities.reduce((sum, a) => sum + (a.cost || 0), 0);
@@ -37,7 +39,18 @@ export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) 
       <div className="relative mx-auto max-w-5xl">
         {/* destination tag */}
         <div className="flex items-center gap-2 text-sm font-semibold text-brand-strong">
-          <span className="text-lg leading-none">{trip.emoji}</span>
+          {readOnly ? (
+            <span className="text-lg leading-none">{trip.emoji}</span>
+          ) : (
+            <button
+              onClick={() => setCustomizing(true)}
+              className="rounded-lg text-lg leading-none transition-transform hover:scale-110 active:scale-95"
+              aria-label="Customise trip cover and icon"
+              title="Customise cover & icon"
+            >
+              {trip.emoji}
+            </button>
+          )}
           <MapPinIcon width={16} height={16} />
           <input
             className="w-full max-w-[16rem] bg-transparent outline-none placeholder:text-brand-strong/50 focus:underline read-only:cursor-default"
@@ -160,6 +173,14 @@ export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) 
           </div>
         </div>
       </div>
+
+      {customizing && (
+        <TripCustomizeSheet
+          trip={trip}
+          onUpdate={onUpdate}
+          onClose={() => setCustomizing(false)}
+        />
+      )}
     </header>
   );
 }
