@@ -25,6 +25,8 @@ interface Props {
   readOnly?: boolean;
   /** the selected day is the real-world "today" */
   isToday?: boolean;
+  /** trip destination, passed to map links for accuracy */
+  cityHint?: string;
   onAdd: () => void;
   onEdit: (a: Activity) => void;
   onDelete: (id: string) => void;
@@ -37,6 +39,7 @@ export default function DayTimeline({
   dayLabel,
   readOnly = false,
   isToday = false,
+  cityHint,
   onAdd,
   onEdit,
   onDelete,
@@ -131,6 +134,7 @@ export default function DayTimeline({
                   index={i}
                   readOnly={readOnly}
                   upNext={a.id === upNextId}
+                  cityHint={cityHint}
                   onEdit={() => onEdit(a)}
                   onDelete={() => onDelete(a.id)}
                   onToggleDone={() => onToggleDone(a.id)}

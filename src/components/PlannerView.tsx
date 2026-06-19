@@ -200,6 +200,7 @@ export default function PlannerView({
               dayLabel={selectedLabel}
               readOnly={readOnly}
               isToday={(selectedDay || days[0]) === toISODate(new Date())}
+              cityHint={trip.destination}
               onAdd={() => setSheet({ date: selectedDay || days[0] })}
               onEdit={(a) => setSheet({ date: a.date, activity: a })}
               onDelete={onRemoveActivity}

@@ -3,6 +3,7 @@
 import type { Activity } from "@/lib/types";
 import { CATEGORY_MAP } from "@/lib/types";
 import { prettyTime } from "@/lib/dates";
+import { mapsUrl } from "@/lib/maps";
 import { CheckIcon, EditIcon, MapPinIcon, TrashIcon } from "./Icons";
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
   index: number;
   readOnly?: boolean;
   upNext?: boolean;
+  /** trip destination, appended to map queries for accuracy */
+  cityHint?: string;
   onEdit: () => void;
   onDelete: () => void;
   onToggleDone: () => void;
@@ -22,6 +25,7 @@ export default function ActivityCard({
   index,
   readOnly = false,
   upNext = false,
+  cityHint,
   onEdit,
   onDelete,
   onToggleDone,
@@ -87,10 +91,33 @@ export default function ActivityCard({
               {activity.title}
             </h4>
             {activity.location && (
-              <p className="mt-0.5 flex items-center gap-1 text-sm text-text-soft">
+              <a
+                href={mapsUrl(activity.location, cityHint)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Open ${activity.location} in Maps`}
+                className="group/loc mt-0.5 inline-flex max-w-full items-center gap-1 rounded-md text-sm text-text-soft transition-colors hover:text-brand"
+              >
                 <MapPinIcon width={13} height={13} className="shrink-0" />
-                <span className="truncate">{activity.location}</span>
-              </p>
+                <span className="truncate underline-offset-2 group-hover/loc:underline">
+                  {activity.location}
+                </span>
+                <svg
+                  className="shrink-0 opacity-50 transition-opacity group-hover/loc:opacity-100"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M7 17 17 7M9 7h8v8" />
+                </svg>
+              </a>
             )}
             {activity.notes && (
               <p className="mt-1.5 text-sm text-text-faint">{activity.notes}</p>

@@ -23,6 +23,8 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
 - **Built for the road** — while you’re travelling, the planner opens straight
   to **today**, the day rail marks *Today*, and a live **“Now”** line plus an
   **“Up next”** badge show exactly what’s happening and what’s coming.
+- **Tap for directions** — every plan’s location is a one-tap link into Maps
+  (Apple Maps on Apple devices), with the destination appended for accuracy.
 - **Editable trip header** — rename the trip, set the destination and date range
   inline; the day rail rebuilds itself automatically.
 - **Restyle anytime** — tap the trip’s emoji to open a Customise sheet and change
