@@ -1,37 +1,50 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Activity, Trip } from "@/lib/types";
+import type { Activity, Collaborator, Trip } from "@/lib/types";
 import { dateRange, formatDay } from "@/lib/dates";
 import TopBar from "./TopBar";
 import TripHeader from "./TripHeader";
 import DayRail from "./DayRail";
 import DayTimeline from "./DayTimeline";
 import ActivitySheet, { type SheetState } from "./ActivitySheet";
+import ShareModal, { avatarColor, initials } from "./ShareModal";
 import { PlusIcon } from "./Icons";
 
 interface Props {
   trip: Trip;
+  profileName: string;
+  onChangeProfileName: (name: string) => void;
   onBack: () => void;
   onUpdateTrip: (patch: Partial<Trip>) => void;
   onAddActivity: (a: Omit<Activity, "id">) => void;
   onUpdateActivity: (id: string, patch: Partial<Activity>) => void;
   onRemoveActivity: (id: string) => void;
   onToggleDone: (id: string) => void;
+  onAddCollaborator: (c: Omit<Collaborator, "id">) => void;
+  onUpdateCollaborator: (id: string, patch: Partial<Collaborator>) => void;
+  onRemoveCollaborator: (id: string) => void;
 }
 
 export default function PlannerView({
   trip,
+  profileName,
+  onChangeProfileName,
   onBack,
   onUpdateTrip,
   onAddActivity,
   onUpdateActivity,
   onRemoveActivity,
   onToggleDone,
+  onAddCollaborator,
+  onUpdateCollaborator,
+  onRemoveCollaborator,
 }: Props) {
   const [selectedDay, setSelectedDay] = useState("");
   const [sheet, setSheet] = useState<SheetState | null>(null);
+  const [showShare, setShowShare] = useState(false);
 
+  const readOnly = trip.role === "viewer";
   const days = useMemo(() => dateRange(trip.startDate, trip.endDate), [trip.startDate, trip.endDate]);
 
   useEffect(() => {
@@ -61,10 +74,15 @@ export default function PlannerView({
   const saveActivity = (data: Omit<Activity, "id">, id?: string) => {
     if (id) onUpdateActivity(id, data);
     else onAddActivity(data);
-    // follow the plan to whichever day it landed on
     if (data.date !== selectedDay) setSelectedDay(data.date);
     setSheet(null);
   };
+
+  // people on the trip: organiser + collaborators (cap the avatar stack)
+  const people = [
+    { id: "owner", name: trip.sharedBy ?? profileName ?? "You", role: trip.role },
+    ...trip.collaborators,
+  ];
 
   return (
     <main className="min-h-[100dvh] pb-28 sm:pb-12">
@@ -82,9 +100,56 @@ export default function PlannerView({
             <span className="hidden sm:inline">Trips</span>
           </button>
         }
+        right={
+          <div className="flex items-center gap-2">
+            {/* avatar stack */}
+            <div className="hidden items-center -space-x-2 sm:flex">
+              {people.slice(0, 4).map((p) => (
+                <span
+                  key={p.id}
+                  title={p.name}
+                  className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg text-[10px] font-bold text-white"
+                  style={{ background: avatarColor(p.name) }}
+                >
+                  {initials(p.name)}
+                </span>
+              ))}
+              {people.length > 4 && (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg bg-surface-2 text-[10px] font-bold text-text-soft">
+                  +{people.length - 4}
+                </span>
+              )}
+            </div>
+            {readOnly ? (
+              <span className="flex items-center gap-1 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text-soft">
+                👀 View only
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowShare(true)}
+                className="btn btn-primary px-3 py-2 text-sm"
+                aria-label="Share trip"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+                </svg>
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            )}
+          </div>
+        }
       />
 
-      <TripHeader trip={trip} onUpdate={onUpdateTrip} />
+      {trip.sharedBy && (
+        <div className="border-b border-border bg-brand-soft/40 px-5 py-2 text-center text-xs font-medium text-brand-strong sm:px-8">
+          Shared by {trip.sharedBy} · {readOnly ? "you can view this trip" : "you can edit this trip"}
+        </div>
+      )}
+
+      <TripHeader trip={trip} onUpdate={onUpdateTrip} readOnly={readOnly} />
 
       <div className="mx-auto max-w-5xl px-5 pt-6 sm:px-8">
         <DayRail
@@ -99,6 +164,7 @@ export default function PlannerView({
           activities={dayActivities}
           currency={trip.currency}
           dayLabel={selectedLabel}
+          readOnly={readOnly}
           onAdd={() => setSheet({ date: selectedDay || days[0] })}
           onEdit={(a) => setSheet({ date: a.date, activity: a })}
           onDelete={onRemoveActivity}
@@ -106,21 +172,35 @@ export default function PlannerView({
         />
       </div>
 
-      <button
-        onClick={() => setSheet({ date: selectedDay || days[0] })}
-        className="btn btn-primary fixed bottom-5 right-5 z-30 h-14 w-14 !p-0 shadow-[var(--shadow-lg)] sm:hidden"
-        aria-label="Add plan"
-      >
-        <PlusIcon width={24} height={24} />
-      </button>
+      {!readOnly && (
+        <button
+          onClick={() => setSheet({ date: selectedDay || days[0] })}
+          className="btn btn-primary fixed bottom-5 right-5 z-30 h-14 w-14 !p-0 shadow-[var(--shadow-lg)] sm:hidden"
+          aria-label="Add plan"
+        >
+          <PlusIcon width={24} height={24} />
+        </button>
+      )}
 
-      {sheet && (
+      {sheet && !readOnly && (
         <ActivitySheet
           state={sheet}
           currency={trip.currency}
           days={days}
           onClose={() => setSheet(null)}
           onSave={saveActivity}
+        />
+      )}
+
+      {showShare && (
+        <ShareModal
+          trip={trip}
+          fromName={profileName}
+          onChangeName={onChangeProfileName}
+          onAdd={onAddCollaborator}
+          onUpdate={onUpdateCollaborator}
+          onRemove={onRemoveCollaborator}
+          onClose={() => setShowShare(false)}
         />
       )}
     </main>

@@ -8,6 +8,7 @@ interface Props {
   activities: Activity[];
   currency: string;
   dayLabel: string;
+  readOnly?: boolean;
   onAdd: () => void;
   onEdit: (a: Activity) => void;
   onDelete: (id: string) => void;
@@ -18,6 +19,7 @@ export default function DayTimeline({
   activities,
   currency,
   dayLabel,
+  readOnly = false,
   onAdd,
   onEdit,
   onDelete,
@@ -51,9 +53,11 @@ export default function DayTimeline({
             )}
           </p>
         </div>
-        <button onClick={onAdd} className="btn btn-primary px-4 py-2 text-sm">
-          <PlusIcon width={17} height={17} /> Add plan
-        </button>
+        {!readOnly && (
+          <button onClick={onAdd} className="btn btn-primary px-4 py-2 text-sm">
+            <PlusIcon width={17} height={17} /> Add plan
+          </button>
+        )}
       </div>
 
       {sorted.length === 0 ? (
@@ -62,14 +66,20 @@ export default function DayTimeline({
             <CompassIcon />
           </div>
           <div>
-            <p className="font-semibold">This day is a blank canvas</p>
-            <p className="mx-auto mt-1 max-w-xs text-sm text-text-soft">
-              Add your first plan — a sight to see, a meal to eat, a train to catch.
+            <p className="font-semibold">
+              {readOnly ? "Nothing planned this day" : "This day is a blank canvas"}
             </p>
+            {!readOnly && (
+              <p className="mx-auto mt-1 max-w-xs text-sm text-text-soft">
+                Add your first plan — a sight to see, a meal to eat, a train to catch.
+              </p>
+            )}
           </div>
-          <button onClick={onAdd} className="btn btn-outline mt-1 px-4 py-2 text-sm">
-            <PlusIcon width={16} height={16} /> Add the first plan
-          </button>
+          {!readOnly && (
+            <button onClick={onAdd} className="btn btn-outline mt-1 px-4 py-2 text-sm">
+              <PlusIcon width={16} height={16} /> Add the first plan
+            </button>
+          )}
         </div>
       ) : (
         <div className="relative">
@@ -86,6 +96,7 @@ export default function DayTimeline({
                 activity={a}
                 currency={currency}
                 index={i}
+                readOnly={readOnly}
                 onEdit={() => onEdit(a)}
                 onDelete={() => onDelete(a.id)}
                 onToggleDone={() => onToggleDone(a.id)}

@@ -28,6 +28,16 @@ export interface Activity {
   done?: boolean;
 }
 
+/** The current user's relationship to a trip. */
+export type Role = "owner" | "editor" | "viewer";
+
+export interface Collaborator {
+  id: string;
+  name: string;
+  email?: string;
+  role: "editor" | "viewer";
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -42,6 +52,14 @@ export interface Trip {
   emoji: string;
   createdAt: number;
   updatedAt: number;
+  /** this user's role on the trip */
+  role: Role;
+  /** people invited by the organiser */
+  collaborators: Collaborator[];
+  /** display name of whoever shared the trip with you (joined trips) */
+  sharedBy?: string;
+  /** original trip id, for de-duping joins of the same shared trip */
+  originId?: string;
 }
 
 /** Cover gradient presets — pick one per trip for a distinct identity. */

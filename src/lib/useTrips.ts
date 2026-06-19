@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Activity, Trip } from "./types";
+import type { Activity, Collaborator, Trip } from "./types";
+import type { InvitePayload } from "./share";
 
 const KEY = "visitrip.app.v2";
 const LEGACY_KEY = "visitrip.trip.v1";
@@ -31,6 +32,10 @@ function normalizeTrip(t: Partial<Trip>): Trip {
     emoji: t.emoji ?? "✈️",
     createdAt: t.createdAt ?? now,
     updatedAt: t.updatedAt ?? now,
+    role: t.role ?? "owner",
+    collaborators: t.collaborators ?? [],
+    sharedBy: t.sharedBy,
+    originId: t.originId,
   };
 }
 
@@ -68,6 +73,12 @@ export interface TripsStore {
   duplicateTrip: (id: string) => void;
   openTrip: (id: string | null) => void;
   importTrips: (trips: Trip[]) => void;
+  // collaboration
+  addCollaborator: (tripId: string, c: Omit<Collaborator, "id">) => void;
+  updateCollaborator: (tripId: string, id: string, patch: Partial<Collaborator>) => void;
+  removeCollaborator: (tripId: string, id: string) => void;
+  /** import a shared trip from an invite; returns the local trip id to open */
+  acceptInvite: (payload: InvitePayload) => string;
   // activity ops on a specific trip
   addActivity: (tripId: string, a: Omit<Activity, "id">) => void;
   updateActivity: (tripId: string, id: string, patch: Partial<Activity>) => void;
@@ -156,6 +167,60 @@ export function useTrips(): TripsStore {
     setState((s) => ({ ...s, trips: [...normalized, ...s.trips] }));
   }, []);
 
+  const addCollaborator = useCallback(
+    (tripId: string, c: Omit<Collaborator, "id">) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        collaborators: [...t.collaborators, { ...c, id: uid("c") }],
+      })),
+    [patchTrip],
+  );
+
+  const updateCollaborator = useCallback(
+    (tripId: string, id: string, patch: Partial<Collaborator>) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        collaborators: t.collaborators.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      })),
+    [patchTrip],
+  );
+
+  const removeCollaborator = useCallback(
+    (tripId: string, id: string) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        collaborators: t.collaborators.filter((c) => c.id !== id),
+      })),
+    [patchTrip],
+  );
+
+  const acceptInvite = useCallback((payload: InvitePayload): string => {
+    const originId = payload.trip.id;
+    let resultId = "";
+    setState((s) => {
+      // if we already joined this shared trip, just re-open it
+      const existing = s.trips.find((t) => t.originId === originId);
+      if (existing) {
+        resultId = existing.id;
+        return { ...s, activeId: existing.id };
+      }
+      const now = Date.now();
+      const trip = normalizeTrip({
+        ...payload.trip,
+        id: uid("trip"),
+        originId,
+        role: payload.role,
+        sharedBy: payload.from,
+        collaborators: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+      resultId = trip.id;
+      return { trips: [trip, ...s.trips], activeId: trip.id };
+    });
+    return resultId;
+  }, []);
+
   const addActivity = useCallback(
     (tripId: string, a: Omit<Activity, "id">) =>
       patchTrip(tripId, (t) => ({ ...t, activities: [...t.activities, { ...a, id: uid("a") }] })),
@@ -199,6 +264,10 @@ export function useTrips(): TripsStore {
     duplicateTrip,
     openTrip,
     importTrips,
+    addCollaborator,
+    updateCollaborator,
+    removeCollaborator,
+    acceptInvite,
     addActivity,
     updateActivity,
     removeActivity,

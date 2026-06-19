@@ -10,9 +10,10 @@ import StatPill from "./StatPill";
 interface Props {
   trip: Trip;
   onUpdate: (patch: Partial<Trip>) => void;
+  readOnly?: boolean;
 }
 
-export default function TripHeader({ trip, onUpdate }: Props) {
+export default function TripHeader({ trip, onUpdate, readOnly = false }: Props) {
   const [editingDates, setEditingDates] = useState(false);
 
   const days = dayCount(trip.startDate, trip.endDate);
@@ -39,24 +40,31 @@ export default function TripHeader({ trip, onUpdate }: Props) {
           <span className="text-lg leading-none">{trip.emoji}</span>
           <MapPinIcon width={16} height={16} />
           <input
-            className="w-full max-w-[16rem] bg-transparent outline-none placeholder:text-brand-strong/50 focus:underline"
+            className="w-full max-w-[16rem] bg-transparent outline-none placeholder:text-brand-strong/50 focus:underline read-only:cursor-default"
             value={trip.destination}
             placeholder="Add a destination"
+            readOnly={readOnly}
             onChange={(e) => onUpdate({ destination: e.target.value })}
           />
         </div>
 
         {/* trip name */}
         <input
-          className="mt-1 w-full bg-transparent font-display text-3xl font-extrabold leading-tight tracking-tight outline-none placeholder:text-text-faint sm:text-5xl"
+          className="mt-1 w-full bg-transparent font-display text-3xl font-extrabold leading-tight tracking-tight outline-none placeholder:text-text-faint read-only:cursor-default sm:text-5xl"
           value={trip.name}
           placeholder="Name your trip"
+          readOnly={readOnly}
           onChange={(e) => onUpdate({ name: e.target.value })}
         />
 
         {/* dates */}
         <div className="mt-2">
-          {editingDates ? (
+          {readOnly ? (
+            <span className="inline-flex items-center gap-2 px-1 py-1 text-sm font-medium text-text-soft">
+              <CalendarIcon width={16} height={16} />
+              {formatRange(trip.startDate, trip.endDate)}
+            </span>
+          ) : editingDates ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <input
                 type="date"
@@ -128,17 +136,21 @@ export default function TripHeader({ trip, onUpdate }: Props) {
             />
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-text-faint">Set budget:</span>
-            <input
-              type="number"
-              min={0}
-              className="field !w-28 !py-1 text-sm"
-              placeholder="0"
-              value={trip.budget ?? ""}
-              onChange={(e) =>
-                onUpdate({ budget: e.target.value ? Number(e.target.value) : undefined })
-              }
-            />
+            {!readOnly && (
+              <>
+                <span className="text-xs text-text-faint">Set budget:</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="field !w-28 !py-1 text-sm"
+                  placeholder="0"
+                  value={trip.budget ?? ""}
+                  onChange={(e) =>
+                    onUpdate({ budget: e.target.value ? Number(e.target.value) : undefined })
+                  }
+                />
+              </>
+            )}
             {over && (
               <span className="text-xs font-semibold text-lodging">
                 {trip.currency}

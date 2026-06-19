@@ -11,6 +11,11 @@ transit, lodging and budget on one clean timeline — on desktop, tablet or phon
   and auto-grouping into *Upcoming & current* vs *Past trips* keep them organised.
 - **Create trips your way** — a new-trip sheet with a live cover preview, emoji
   picker, gradient covers and currency.
+- **Plan together** — invite friends and family from the **Share** panel: manage
+  an access list with roles and copy an **invite link** that grants *Editor* or
+  *Viewer* access. Opening a link shows a join screen and adds the trip to your
+  device in the granted role — **viewers get a clean read-only experience**
+  (avatar stack, “Shared by …” banner, no editing controls).
 - **Day-by-day timeline** — every plan sits on a vertical timeline with a
   colour-coded category node (sights, food, activity, transit, stay, shopping).
 - **Editable trip header** — rename the trip, set the destination and date range

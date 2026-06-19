@@ -19,6 +19,8 @@ export function buildSampleTrip(): Trip {
     emoji: "⛩️",
     createdAt: now,
     updatedAt: now,
+    role: "owner",
+    collaborators: [],
     activities: [
       { id: "s1", date: d(0), time: "09:30", title: "Arrive at Kyoto Station", category: "transport", location: "Kyoto Station", cost: 0, notes: "Pick up the JR Pass at the booth." },
       { id: "s2", date: d(0), time: "11:00", title: "Check in at Machiya stay", category: "lodging", location: "Gion district", cost: 320 },
@@ -54,6 +56,8 @@ function buildLisbonTrip(): Trip {
     emoji: "🌅",
     createdAt: now,
     updatedAt: now,
+    role: "owner",
+    collaborators: [],
     activities: [
       { id: "l1", date: d(0), time: "10:00", title: "Tram 28 through Alfama", category: "sightseeing", location: "Alfama", cost: 3 },
       { id: "l2", date: d(0), time: "13:00", title: "Pastéis de nata", category: "food", location: "Manteigaria", cost: 6 },
@@ -80,6 +84,8 @@ function buildIcelandTrip(): Trip {
     emoji: "🏔️",
     createdAt: now,
     updatedAt: now,
+    role: "owner",
+    collaborators: [],
     activities: [
       { id: "i1", date: d(0), time: "12:00", title: "Pick up camper van", category: "transport", location: "Keflavík", cost: 540 },
       { id: "i2", date: d(1), time: "10:00", title: "Golden Circle loop", category: "sightseeing", location: "Þingvellir", cost: 0 },
@@ -109,6 +115,8 @@ export function buildBlankTrip(): Trip {
     emoji: "✈️",
     createdAt: now,
     updatedAt: now,
+    role: "owner",
+    collaborators: [],
     activities: [],
   };
 }

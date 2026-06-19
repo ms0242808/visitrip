@@ -9,6 +9,7 @@ interface Props {
   activity: Activity;
   currency: string;
   index: number;
+  readOnly?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggleDone: () => void;
@@ -18,6 +19,7 @@ export default function ActivityCard({
   activity,
   currency,
   index,
+  readOnly = false,
   onEdit,
   onDelete,
   onToggleDone,
@@ -95,7 +97,11 @@ export default function ActivityCard({
         </div>
 
         {/* hover action bar */}
-        <div className="mt-3 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+        <div
+          className={`mt-3 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 ${
+            readOnly ? "hidden" : ""
+          }`}
+        >
           <button
             onClick={onToggleDone}
             className="btn btn-ghost px-2.5 py-1.5 text-xs"
