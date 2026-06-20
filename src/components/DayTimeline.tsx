@@ -54,6 +54,8 @@ export default function DayTimeline({
   });
 
   const dayTotal = sorted.reduce((s, a) => s + (a.cost || 0), 0);
+  const doneCount = sorted.filter((a) => a.done).length;
+  const allDone = sorted.length > 0 && doneCount === sorted.length;
 
   // "now" orientation for today: find the next upcoming timed plan
   const now = nowHM();
@@ -94,6 +96,24 @@ export default function DayTimeline({
           </button>
         )}
       </div>
+
+      {/* day progress — rewarding to tick plans off as you go */}
+      {doneCount > 0 && (
+        <div className="mb-4 flex items-center gap-3" aria-label="Day progress">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full transition-[width] duration-500 ease-out"
+              style={{
+                width: `${(doneCount / sorted.length) * 100}%`,
+                background: "linear-gradient(90deg, var(--accent), var(--c-activity))",
+              }}
+            />
+          </div>
+          <span className="shrink-0 text-xs font-semibold text-text-soft">
+            {allDone ? "All done 🎉" : `${doneCount}/${sorted.length} done`}
+          </span>
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <div className="card flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">

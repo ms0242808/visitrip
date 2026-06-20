@@ -57,6 +57,11 @@ export default function TripOverview({
               <div className="flex items-center gap-2 text-xs text-text-faint">
                 <span>
                   {dayPlans.length} {dayPlans.length === 1 ? "plan" : "plans"}
+                  {dayPlans.some((a) => a.done) && (
+                    <span className="ml-1 font-semibold" style={{ color: "var(--c-activity)" }}>
+                      · {dayPlans.filter((a) => a.done).length} done
+                    </span>
+                  )}
                   {total > 0 && (
                     <span className="ml-1 font-semibold text-text-soft">
                       · {currency}

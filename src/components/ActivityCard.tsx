@@ -76,7 +76,18 @@ export default function ActivityCard({
               >
                 {cat.label}
               </span>
-              {upNext && (
+              {activity.done && (
+                <span
+                  className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
+                  style={{
+                    background: "color-mix(in srgb, var(--c-activity) 18%, transparent)",
+                    color: "var(--c-activity)",
+                  }}
+                >
+                  <CheckIcon width={11} height={11} /> Done
+                </span>
+              )}
+              {upNext && !activity.done && (
                 <span className="flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                   Up next
