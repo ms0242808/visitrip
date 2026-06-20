@@ -1,0 +1,276 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Activity, Collaborator, Trip } from "./types";
+import type { InvitePayload } from "./share";
+
+const KEY = "visitrip.app.v2";
+const LEGACY_KEY = "visitrip.trip.v1";
+
+interface Persisted {
+  trips: Trip[];
+  activeId: string | null;
+}
+
+function uid(prefix = "id"): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Fill any fields missing from older/partial data. */
+function normalizeTrip(t: Partial<Trip>): Trip {
+  const now = Date.now();
+  return {
+    id: t.id ?? uid("trip"),
+    name: t.name ?? "Untitled trip",
+    destination: t.destination ?? "",
+    startDate: t.startDate ?? "",
+    endDate: t.endDate ?? "",
+    currency: t.currency ?? "$",
+    budget: t.budget,
+    activities: t.activities ?? [],
+    cover: t.cover ?? 0,
+    emoji: t.emoji ?? "✈️",
+    createdAt: t.createdAt ?? now,
+    updatedAt: t.updatedAt ?? now,
+    role: t.role ?? "owner",
+    collaborators: t.collaborators ?? [],
+    sharedBy: t.sharedBy,
+    originId: t.originId,
+  };
+}
+
+function load(): Persisted {
+  if (typeof window === "undefined") return { trips: [], activeId: null };
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Persisted;
+      return {
+        trips: (parsed.trips ?? []).map(normalizeTrip),
+        activeId: parsed.activeId ?? null,
+      };
+    }
+    // migrate a single legacy trip into the collection
+    const legacy = window.localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const trip = normalizeTrip(JSON.parse(legacy) as Partial<Trip>);
+      return { trips: [trip], activeId: null };
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return { trips: [], activeId: null };
+}
+
+export interface TripsStore {
+  trips: Trip[];
+  activeId: string | null;
+  active: Trip | null;
+  hydrated: boolean;
+  createTrip: (t: Partial<Trip>) => string;
+  updateTrip: (id: string, patch: Partial<Trip>) => void;
+  deleteTrip: (id: string) => void;
+  duplicateTrip: (id: string) => void;
+  openTrip: (id: string | null) => void;
+  importTrips: (trips: Trip[]) => void;
+  // collaboration
+  addCollaborator: (tripId: string, c: Omit<Collaborator, "id">) => void;
+  updateCollaborator: (tripId: string, id: string, patch: Partial<Collaborator>) => void;
+  removeCollaborator: (tripId: string, id: string) => void;
+  /** import a shared trip from an invite; returns the local trip id to open */
+  acceptInvite: (payload: InvitePayload) => string;
+  // activity ops on a specific trip
+  addActivity: (tripId: string, a: Omit<Activity, "id">) => void;
+  updateActivity: (tripId: string, id: string, patch: Partial<Activity>) => void;
+  removeActivity: (tripId: string, id: string) => void;
+  toggleDone: (tripId: string, id: string) => void;
+}
+
+export function useTrips(): TripsStore {
+  const [state, setState] = useState<Persisted>({ trips: [], activeId: null });
+  const [hydrated, setHydrated] = useState(false);
+  const skipPersist = useRef(true);
+
+  useEffect(() => {
+    setState(load());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (skipPersist.current) {
+      skipPersist.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
+  }, [state, hydrated]);
+
+  /** Apply a patch to one trip and bump its updatedAt. */
+  const patchTrip = useCallback(
+    (id: string, fn: (t: Trip) => Trip) => {
+      setState((s) => ({
+        ...s,
+        trips: s.trips.map((t) => (t.id === id ? { ...fn(t), updatedAt: Date.now() } : t)),
+      }));
+    },
+    [],
+  );
+
+  const createTrip = useCallback((t: Partial<Trip>): string => {
+    const trip = normalizeTrip({ ...t, id: uid("trip") });
+    setState((s) => ({ ...s, trips: [trip, ...s.trips] }));
+    return trip.id;
+  }, []);
+
+  const updateTrip = useCallback(
+    (id: string, patch: Partial<Trip>) => patchTrip(id, (t) => ({ ...t, ...patch })),
+    [patchTrip],
+  );
+
+  const deleteTrip = useCallback((id: string) => {
+    setState((s) => ({
+      activeId: s.activeId === id ? null : s.activeId,
+      trips: s.trips.filter((t) => t.id !== id),
+    }));
+  }, []);
+
+  const duplicateTrip = useCallback((id: string) => {
+    setState((s) => {
+      const src = s.trips.find((t) => t.id === id);
+      if (!src) return s;
+      const now = Date.now();
+      const copy: Trip = {
+        ...src,
+        id: uid("trip"),
+        name: `${src.name} (copy)`,
+        createdAt: now,
+        updatedAt: now,
+        activities: src.activities.map((a) => ({ ...a, id: uid("a") })),
+      };
+      const idx = s.trips.findIndex((t) => t.id === id);
+      const trips = [...s.trips];
+      trips.splice(idx + 1, 0, copy);
+      return { ...s, trips };
+    });
+  }, []);
+
+  const openTrip = useCallback((id: string | null) => {
+    setState((s) => ({ ...s, activeId: id }));
+  }, []);
+
+  const importTrips = useCallback((trips: Trip[]) => {
+    const normalized = trips.map(normalizeTrip);
+    setState((s) => ({ ...s, trips: [...normalized, ...s.trips] }));
+  }, []);
+
+  const addCollaborator = useCallback(
+    (tripId: string, c: Omit<Collaborator, "id">) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        collaborators: [...t.collaborators, { ...c, id: uid("c") }],
+      })),
+    [patchTrip],
+  );
+
+  const updateCollaborator = useCallback(
+    (tripId: string, id: string, patch: Partial<Collaborator>) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        collaborators: t.collaborators.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      })),
+    [patchTrip],
+  );
+
+  const removeCollaborator = useCallback(
+    (tripId: string, id: string) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        collaborators: t.collaborators.filter((c) => c.id !== id),
+      })),
+    [patchTrip],
+  );
+
+  const acceptInvite = useCallback((payload: InvitePayload): string => {
+    const originId = payload.trip.id;
+    let resultId = "";
+    setState((s) => {
+      // if we already joined this shared trip, just re-open it
+      const existing = s.trips.find((t) => t.originId === originId);
+      if (existing) {
+        resultId = existing.id;
+        return { ...s, activeId: existing.id };
+      }
+      const now = Date.now();
+      const trip = normalizeTrip({
+        ...payload.trip,
+        id: uid("trip"),
+        originId,
+        role: payload.role,
+        sharedBy: payload.from,
+        collaborators: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+      resultId = trip.id;
+      return { trips: [trip, ...s.trips], activeId: trip.id };
+    });
+    return resultId;
+  }, []);
+
+  const addActivity = useCallback(
+    (tripId: string, a: Omit<Activity, "id">) =>
+      patchTrip(tripId, (t) => ({ ...t, activities: [...t.activities, { ...a, id: uid("a") }] })),
+    [patchTrip],
+  );
+
+  const updateActivity = useCallback(
+    (tripId: string, id: string, patch: Partial<Activity>) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        activities: t.activities.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+      })),
+    [patchTrip],
+  );
+
+  const removeActivity = useCallback(
+    (tripId: string, id: string) =>
+      patchTrip(tripId, (t) => ({ ...t, activities: t.activities.filter((x) => x.id !== id) })),
+    [patchTrip],
+  );
+
+  const toggleDone = useCallback(
+    (tripId: string, id: string) =>
+      patchTrip(tripId, (t) => ({
+        ...t,
+        activities: t.activities.map((x) => (x.id === id ? { ...x, done: !x.done } : x)),
+      })),
+    [patchTrip],
+  );
+
+  const active = state.trips.find((t) => t.id === state.activeId) ?? null;
+
+  return {
+    trips: state.trips,
+    activeId: state.activeId,
+    active,
+    hydrated,
+    createTrip,
+    updateTrip,
+    deleteTrip,
+    duplicateTrip,
+    openTrip,
+    importTrips,
+    addCollaborator,
+    updateCollaborator,
+    removeCollaborator,
+    acceptInvite,
+    addActivity,
+    updateActivity,
+    removeActivity,
+    toggleDone,
+  };
+}
